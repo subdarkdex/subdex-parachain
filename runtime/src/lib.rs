@@ -47,7 +47,6 @@ pub use frame_support::{
 };
 
 pub use dex_pallet::Call as DexPalletCall;
-pub use generic_asset::Call as GenericAssetCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
@@ -216,11 +215,11 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = generic_asset::SpendingAssetCurrency<Runtime>;
-    type OnTransactionPayment = ();
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ();
+	type Currency = Balances;
+	type OnTransactionPayment = ();
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = IdentityFee<Balance>;
+	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_balances::Trait for Runtime {
@@ -276,9 +275,10 @@ parameter_types! {
 
 impl dex_pallet::Trait for Runtime {
     type Event = Event;
+    type Currency = Balances;
+    type InitialShares = InitialShares;
     type AssetId = AssetId;
     type KSMAssetId = KSMAssetId;
-    type InitialShares = InitialShares;
     type ExchangeFeeRateNominator = ExchangeFeeRateNominator;
     type ExchangeFeeRateDenominator = ExchangeFeeRateDenominator;
 }
