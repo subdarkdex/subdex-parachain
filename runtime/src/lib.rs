@@ -27,10 +27,10 @@ use dex_xcmp::XCMPMessage;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
 use sp_runtime::{
-    create_runtime_str, generic, impl_opaque_keys,
-    traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Saturating, Verify},
-    transaction_validity::{TransactionSource, TransactionValidity},
-    ApplyExtrinsicResult, MultiSignature,
+	create_runtime_str, generic, impl_opaque_keys,
+	traits::{BlakeTwo256, Block as BlockT, IdentifyAccount, IdentityLookup, Saturating, Verify},
+	transaction_validity::{TransactionSource, TransactionValidity},
+	ApplyExtrinsicResult, MultiSignature,
 };
 use sp_std::prelude::*;
 #[cfg(feature = "std")]
@@ -40,10 +40,10 @@ use sp_version::RuntimeVersion;
 // A few exports that help ease life for downstream crates.
 
 pub use frame_support::{
-    construct_runtime, parameter_types,
-    traits::{Get, KeyOwnerProofSystem, Randomness},
-    weights::{constants::WEIGHT_PER_SECOND, IdentityFee, Weight},
-    StorageValue,
+	construct_runtime, parameter_types,
+	traits::{Get, KeyOwnerProofSystem, Randomness},
+	weights::{constants::WEIGHT_PER_SECOND, IdentityFee, Weight},
+	StorageValue,
 };
 
 pub use dex_pallet::Call as DexPalletCall;
@@ -87,33 +87,33 @@ pub type DigestItem = generic::DigestItem<Hash>;
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
 /// to even the core datastructures.
 pub mod opaque {
-    use super::*;
+	use super::*;
 
-    pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+	pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
-    /// Opaque block header type.
-    pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// Opaque block type.
-    pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-    /// Opaque block identifier type.
-    pub type BlockId = generic::BlockId<Block>;
+	/// Opaque block header type.
+	pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	/// Opaque block type.
+	pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+	/// Opaque block identifier type.
+	pub type BlockId = generic::BlockId<Block>;
 
-    pub type SessionHandlers = ();
+	pub type SessionHandlers = ();
 
-    impl_opaque_keys! {
-        pub struct SessionKeys {}
-    }
+	impl_opaque_keys! {
+		pub struct SessionKeys {}
+	}
 }
 
 /// This runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("wasm-test-parachain"),
-    impl_name: create_runtime_str!("wasm-test-parachain"),
-    authoring_version: 3,
-    spec_version: 4,
-    impl_version: 4,
-    apis: RUNTIME_API_VERSIONS,
-    transaction_version: 1,
+	spec_name: create_runtime_str!("wasm-test-parachain"),
+	impl_name: create_runtime_str!("wasm-test-parachain"),
+	authoring_version: 3,
+	spec_version: 4,
+	impl_version: 4,
+	apis: RUNTIME_API_VERSIONS,
+	transaction_version: 1,
 };
 
 pub const MILLISECS_PER_BLOCK: u64 = 3000;
@@ -133,166 +133,166 @@ pub const PRIMARY_PROBABILITY: (u64, u64) = (1, 4);
 /// The version infromation used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
-    NativeVersion {
-        runtime_version: VERSION,
-        can_author_with: Default::default(),
-    }
+	NativeVersion {
+		runtime_version: VERSION,
+		can_author_with: Default::default(),
+	}
 }
 
 parameter_types! {
-    pub const BlockHashCount: BlockNumber = 250;
-    pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
-    /// Assume 10% of weight for average on_initialize calls.
-    pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
-        .saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
-    pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
-    pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
-    pub const Version: RuntimeVersion = VERSION;
-    pub const ExtrinsicBaseWeight: Weight = 10_000_000;
+	pub const BlockHashCount: BlockNumber = 250;
+	pub const MaximumBlockWeight: Weight = 2 * WEIGHT_PER_SECOND;
+	/// Assume 10% of weight for average on_initialize calls.
+	pub MaximumExtrinsicWeight: Weight = AvailableBlockRatio::get()
+		.saturating_sub(Perbill::from_percent(10)) * MaximumBlockWeight::get();
+	pub const AvailableBlockRatio: Perbill = Perbill::from_percent(75);
+	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
+	pub const Version: RuntimeVersion = VERSION;
+	pub const ExtrinsicBaseWeight: Weight = 10_000_000;
 }
 
 impl frame_system::Trait for Runtime {
-    /// The identifier used to distinguish between accounts.
-    type AccountId = AccountId;
-    /// The aggregated dispatch type that is available for extrinsics.
-    type Call = Call;
-    /// The lookup mechanism to get account ID from whatever is passed in dispatchers.
-    type Lookup = IdentityLookup<AccountId>;
-    /// The index type for storing how many extrinsics an account has signed.
-    type Index = Index;
-    /// The index type for blocks.
-    type BlockNumber = BlockNumber;
-    /// The type for hashing blocks and tries.
-    type Hash = Hash;
-    /// The hashing algorithm used.
-    type Hashing = BlakeTwo256;
-    /// The header type.
-    type Header = generic::Header<BlockNumber, BlakeTwo256>;
-    /// The ubiquitous event type.
-    type Event = Event;
-    /// The ubiquitous origin type.
-    type Origin = Origin;
-    /// Maximum number of block number to block hash mappings to keep (oldest pruned first).
-    type BlockHashCount = BlockHashCount;
-    /// Maximum weight of each block. With a default weight system of 1byte == 1weight, 4mb is ok.
-    type MaximumBlockWeight = MaximumBlockWeight;
-    /// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
-    type MaximumBlockLength = MaximumBlockLength;
-    /// Portion of the block weight that is available to all normal transactions.
-    type AvailableBlockRatio = AvailableBlockRatio;
-    /// Runtime version.
-    type Version = Version;
-    /// Converts a module to an index of this module in the runtime.
-    type ModuleToIndex = ModuleToIndex;
-    type AccountData = ();
-    type OnNewAccount = ();
-    type OnKilledAccount = ();
-    type DbWeight = ();
-    type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
-    type BlockExecutionWeight = ();
-    type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
-    type BaseCallFilter = ();
-    type SystemWeightInfo = ();
+	/// The identifier used to distinguish between accounts.
+	type AccountId = AccountId;
+	/// The aggregated dispatch type that is available for extrinsics.
+	type Call = Call;
+	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
+	type Lookup = IdentityLookup<AccountId>;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Index = Index;
+	/// The index type for blocks.
+	type BlockNumber = BlockNumber;
+	/// The type for hashing blocks and tries.
+	type Hash = Hash;
+	/// The hashing algorithm used.
+	type Hashing = BlakeTwo256;
+	/// The header type.
+	type Header = generic::Header<BlockNumber, BlakeTwo256>;
+	/// The ubiquitous event type.
+	type Event = Event;
+	/// The ubiquitous origin type.
+	type Origin = Origin;
+	/// Maximum number of block number to block hash mappings to keep (oldest pruned first).
+	type BlockHashCount = BlockHashCount;
+	/// Maximum weight of each block. With a default weight system of 1byte == 1weight, 4mb is ok.
+	type MaximumBlockWeight = MaximumBlockWeight;
+	/// Maximum size of all encoded transactions (in bytes) that are allowed in one block.
+	type MaximumBlockLength = MaximumBlockLength;
+	/// Portion of the block weight that is available to all normal transactions.
+	type AvailableBlockRatio = AvailableBlockRatio;
+	/// Runtime version.
+	type Version = Version;
+	/// Converts a module to an index of this module in the runtime.
+	type ModuleToIndex = ModuleToIndex;
+	type AccountData = ();
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
+	type DbWeight = ();
+	type ExtrinsicBaseWeight = ExtrinsicBaseWeight;
+	type BlockExecutionWeight = ();
+	type MaximumExtrinsicWeight = MaximumExtrinsicWeight;
+	type BaseCallFilter = ();
+	type SystemWeightInfo = ();
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
 }
 
 impl pallet_timestamp::Trait for Runtime {
-    /// A timestamp: milliseconds since the unix epoch.
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
+	/// A timestamp: milliseconds since the unix epoch.
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: u128 = 500;
-    pub const TransferFee: u128 = 0;
-    pub const CreationFee: u128 = 0;
-    pub const TransactionByteFee: u128 = 1;
+	pub const ExistentialDeposit: u128 = 500;
+	pub const TransferFee: u128 = 0;
+	pub const CreationFee: u128 = 0;
+	pub const TransactionByteFee: u128 = 1;
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-    type Currency = generic_asset::SpendingAssetCurrency<Runtime>;
-    type OnTransactionPayment = ();
-    type TransactionByteFee = TransactionByteFee;
-    type WeightToFee = IdentityFee<Balance>;
-    type FeeMultiplierUpdate = ();
+	type Currency = generic_asset::SpendingAssetCurrency<Runtime>;
+	type OnTransactionPayment = ();
+	type TransactionByteFee = TransactionByteFee;
+	type WeightToFee = IdentityFee<Balance>;
+	type FeeMultiplierUpdate = ();
 }
 
 impl pallet_sudo::Trait for Runtime {
-    type Call = Call;
-    type Event = Event;
+	type Call = Call;
+	type Event = Event;
 }
 
 impl cumulus_parachain_upgrade::Trait for Runtime {
-    type Event = Event;
-    type OnValidationFunctionParams = ();
+	type Event = Event;
+	type OnValidationFunctionParams = ();
 }
 
 parameter_types! {
-    pub storage ParachainId: cumulus_primitives::ParaId = 200.into();
+	pub storage ParachainId: cumulus_primitives::ParaId = 200.into();
 }
 
 impl cumulus_message_broker::Trait for Runtime {
-    type Event = Event;
-    type DownwardMessageHandlers = DexXCMP;
-    type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
-    type ParachainId = ParachainId;
-    type XCMPMessage = XCMPMessage<AccountId, Balance>;
-    type XCMPMessageHandlers = DexXCMP;
+	type Event = Event;
+	type DownwardMessageHandlers = DexXCMP;
+	type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
+	type ParachainId = ParachainId;
+	type XCMPMessage = XCMPMessage<AccountId, Balance>;
+	type XCMPMessageHandlers = DexXCMP;
 }
 
 impl dex_xcmp::Trait for Runtime {
-    type Event = Event;
-    type UpwardMessageSender = MessageBroker;
-    type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
-    // type Currency = generic_asset::SpendingAssetCurrency<Runtime>;
-    type XCMPMessageSender = MessageBroker;
+	type Event = Event;
+	type UpwardMessageSender = MessageBroker;
+	type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
+	// type Currency = generic_asset::SpendingAssetCurrency<Runtime>;
+	type XCMPMessageSender = MessageBroker;
 }
 
 impl generic_asset::Trait for Runtime {
-    type Event = Event;
-    type Balance = Balance;
-    type AssetId = AssetId;
+	type Event = Event;
+	type Balance = Balance;
+	type AssetId = AssetId;
 }
 
 parameter_types! {
-    // Main currency id
-    pub const KSMAssetId: AssetId = 1;
-    pub const InitialShares: Balance = 1000;
+	// Main currency id
+	pub const KSMAssetId: AssetId = 1;
+	pub const InitialShares: Balance = 1000;
 
-    // 3/1000
-    pub const ExchangeFeeRateNominator: Balance = 3;
-    pub const ExchangeFeeRateDenominator: Balance = 1000;
+	// 3/1000
+	pub const ExchangeFeeRateNominator: Balance = 3;
+	pub const ExchangeFeeRateDenominator: Balance = 1000;
 }
 
 impl dex_pallet::Trait for Runtime {
-    type Event = Event;
-    type InitialShares = InitialShares;
-    type ExchangeFeeRateNominator = ExchangeFeeRateNominator;
-    type ExchangeFeeRateDenominator = ExchangeFeeRateDenominator;
+	type Event = Event;
+	type InitialShares = InitialShares;
+	type ExchangeFeeRateNominator = ExchangeFeeRateNominator;
+	type ExchangeFeeRateDenominator = ExchangeFeeRateDenominator;
 }
 
 construct_runtime! {
-    pub enum Runtime where
-        Block = Block,
-        NodeBlock = opaque::Block,
-        UncheckedExtrinsic = UncheckedExtrinsic
-    {
-        System: frame_system::{Module, Call, Storage, Config, Event<T>},
-        Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
-        Sudo: pallet_sudo::{Module, Call, Storage, Config<T>, Event<T>},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-        ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
-        MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
-        DexXCMP: dex_xcmp::{Module, Call, Event<T>, Config<T>},
-        TransactionPayment: pallet_transaction_payment::{Module, Storage},
-        GenericAsset: generic_asset::{Module, Call, Config<T>, Storage, Event<T>},
-        DexPallet: dex_pallet::{Module, Config<T>, Call, Storage, Event<T>},
-    }
+	pub enum Runtime where
+		Block = Block,
+		NodeBlock = opaque::Block,
+		UncheckedExtrinsic = UncheckedExtrinsic
+	{
+		System: frame_system::{Module, Call, Storage, Config, Event<T>},
+		Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
+		Sudo: pallet_sudo::{Module, Call, Storage, Config<T>, Event<T>},
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
+		ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
+		MessageBroker: cumulus_message_broker::{Module, Call, Inherent, Event<T>},
+		DexXCMP: dex_xcmp::{Module, Call, Event<T>, Config<T>},
+		TransactionPayment: pallet_transaction_payment::{Module, Storage},
+		GenericAsset: generic_asset::{Module, Call, Config<T>, Storage, Event<T>},
+		DexPallet: dex_pallet::{Module, Config<T>, Call, Storage, Event<T>},
+	}
 }
 
 /// The address format for describing accounts.
@@ -307,12 +307,12 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 pub type BlockId = generic::BlockId<Block>;
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
-    frame_system::CheckSpecVersion<Runtime>,
-    frame_system::CheckGenesis<Runtime>,
-    frame_system::CheckEra<Runtime>,
-    frame_system::CheckNonce<Runtime>,
-    frame_system::CheckWeight<Runtime>,
-    pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	frame_system::CheckSpecVersion<Runtime>,
+	frame_system::CheckGenesis<Runtime>,
+	frame_system::CheckEra<Runtime>,
+	frame_system::CheckNonce<Runtime>,
+	frame_system::CheckWeight<Runtime>,
+	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signature, SignedExtra>;
@@ -320,84 +320,84 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
-    Runtime,
-    Block,
-    frame_system::ChainContext<Runtime>,
-    Runtime,
-    AllModules,
+	Runtime,
+	Block,
+	frame_system::ChainContext<Runtime>,
+	Runtime,
+	AllModules,
 >;
 
 impl_runtime_apis! {
-    impl sp_api::Core<Block> for Runtime {
-        fn version() -> RuntimeVersion {
-            VERSION
-        }
+	impl sp_api::Core<Block> for Runtime {
+		fn version() -> RuntimeVersion {
+			VERSION
+		}
 
-        fn execute_block(block: Block) {
-            Executive::execute_block(block)
-        }
+		fn execute_block(block: Block) {
+			Executive::execute_block(block)
+		}
 
-        fn initialize_block(header: &<Block as BlockT>::Header) {
-            Executive::initialize_block(header)
-        }
-    }
+		fn initialize_block(header: &<Block as BlockT>::Header) {
+			Executive::initialize_block(header)
+		}
+	}
 
-    impl sp_api::Metadata<Block> for Runtime {
-        fn metadata() -> OpaqueMetadata {
-            Runtime::metadata().into()
-        }
-    }
+	impl sp_api::Metadata<Block> for Runtime {
+		fn metadata() -> OpaqueMetadata {
+			Runtime::metadata().into()
+		}
+	}
 
-    impl sp_block_builder::BlockBuilder<Block> for Runtime {
-        fn apply_extrinsic(
-            extrinsic: <Block as BlockT>::Extrinsic,
-        ) -> ApplyExtrinsicResult {
-            Executive::apply_extrinsic(extrinsic)
-        }
+	impl sp_block_builder::BlockBuilder<Block> for Runtime {
+		fn apply_extrinsic(
+			extrinsic: <Block as BlockT>::Extrinsic,
+		) -> ApplyExtrinsicResult {
+			Executive::apply_extrinsic(extrinsic)
+		}
 
-        fn finalize_block() -> <Block as BlockT>::Header {
-            Executive::finalize_block()
-        }
+		fn finalize_block() -> <Block as BlockT>::Header {
+			Executive::finalize_block()
+		}
 
-        fn inherent_extrinsics(data: sp_inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
-            data.create_extrinsics()
-        }
+		fn inherent_extrinsics(data: sp_inherents::InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+			data.create_extrinsics()
+		}
 
-        fn check_inherents(block: Block, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
-            data.check_extrinsics(&block)
-        }
+		fn check_inherents(block: Block, data: sp_inherents::InherentData) -> sp_inherents::CheckInherentsResult {
+			data.check_extrinsics(&block)
+		}
 
-        fn random_seed() -> <Block as BlockT>::Hash {
-            RandomnessCollectiveFlip::random_seed()
-        }
-    }
+		fn random_seed() -> <Block as BlockT>::Hash {
+			RandomnessCollectiveFlip::random_seed()
+		}
+	}
 
-    impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
-        fn validate_transaction(
-            source: TransactionSource,
-            tx: <Block as BlockT>::Extrinsic,
-        ) -> TransactionValidity {
-            Executive::validate_transaction(source, tx)
-        }
-    }
+	impl sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block> for Runtime {
+		fn validate_transaction(
+			source: TransactionSource,
+			tx: <Block as BlockT>::Extrinsic,
+		) -> TransactionValidity {
+			Executive::validate_transaction(source, tx)
+		}
+	}
 
-    impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
-        fn offchain_worker(header: &<Block as BlockT>::Header) {
-            Executive::offchain_worker(header)
-        }
-    }
+	impl sp_offchain::OffchainWorkerApi<Block> for Runtime {
+		fn offchain_worker(header: &<Block as BlockT>::Header) {
+			Executive::offchain_worker(header)
+		}
+	}
 
-    impl sp_session::SessionKeys<Block> for Runtime {
-        fn decode_session_keys(
-            encoded: Vec<u8>,
-        ) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
-            opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
-        }
+	impl sp_session::SessionKeys<Block> for Runtime {
+		fn decode_session_keys(
+			encoded: Vec<u8>,
+		) -> Option<Vec<(Vec<u8>, sp_core::crypto::KeyTypeId)>> {
+			opaque::SessionKeys::decode_into_raw_public_keys(&encoded)
+		}
 
-        fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
-            opaque::SessionKeys::generate(seed)
-        }
-    }
+		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+			opaque::SessionKeys::generate(seed)
+		}
+	}
 }
 
 cumulus_runtime::register_validate_block!(Block, Executive);

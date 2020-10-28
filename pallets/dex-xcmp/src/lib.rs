@@ -182,7 +182,8 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
                 // TODO figure out a better way to ensure relay chain asset was not created
 
                 if !<CurrencyByParaId<T>>::contains_key(ParaId::default()) {
-                    let dex_asset_options = Self::create_default_dex_asset_options();
+                    let dex_asset_options =
+                        Self::create_default_dex_asset_options();
 
                     <generic_asset::Module<T>>::create_asset(
                         Some(relay_chain_currency_id),
