@@ -99,8 +99,8 @@ decl_error! {
         TotalSharesNotNull,
         LowKsmAmount,
         LowassetAmount,
-        KsmAmountBelowExpectation,
-        AssetAmountBelowExpectation,
+        FirstAssetAmountBelowExpectation,
+        SecondAssetAmountBelowExpectation,
         InsufficientPool,
         InvalidShares,
         InsufficientShares,
@@ -530,11 +530,11 @@ impl<T: Trait> Module<T> {
     ) -> dispatch::DispatchResult {
         ensure!(
             first_asset_cost >= min_first_asset_received,
-            Error::<T>::KsmAmountBelowExpectation
+            Error::<T>::FirstAssetAmountBelowExpectation
         );
         ensure!(
             second_asset_cost >= min_second_asset_received,
-            Error::<T>::AssetAmountBelowExpectation
+            Error::<T>::SecondAssetAmountBelowExpectation
         );
         Ok(())
     }

@@ -149,7 +149,7 @@ impl<T: Trait> Exchange<T> {
     ) -> dispatch::DispatchResult {
         ensure!(
             asset_out_amount >= min_asset_out_amount,
-            Error::<T>::AssetAmountBelowExpectation
+            Error::<T>::SecondAssetAmountBelowExpectation
         );
         ensure!(
             asset_out_amount <= self.second_asset_pool,
@@ -182,7 +182,7 @@ impl<T: Trait> Exchange<T> {
     ) -> dispatch::DispatchResult {
         ensure!(
             first_asset_out_amount >= min_first_asset_out_amount,
-            Error::<T>::AssetAmountBelowExpectation
+            Error::<T>::SecondAssetAmountBelowExpectation
         );
         ensure!(
             first_asset_out_amount <= self.first_asset_pool,
