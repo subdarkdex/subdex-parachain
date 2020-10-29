@@ -108,7 +108,10 @@ decl_error! {
         InsufficientKsmBalance,
         InsufficientOtherAssetBalance,
 
-        OverflowOccured
+        // Safe math
+        OverflowOccured,
+        UnderflowOccured,
+        UnderflowOrOverflowOccured
     }
 }
 
@@ -139,14 +142,14 @@ decl_module! {
             Self::exchanges(first_asset_id, second_asset_id).ensure_launch()?;
             Self::ensure_sufficient_balances(&sender, first_asset_id, first_asset_amount, second_asset_id, second_asset_amount)?;
 
+            // TODO adjust shares allocation
+            let exchange = Exchange::<T>::initialize_new(first_asset_amount, second_asset_amount, sender.clone())?;
+
             //
             // == MUTATION SAFE ==
             //
 
             Self::slash_assets(&sender, first_asset_id, first_asset_amount, second_asset_id, second_asset_amount);
-
-            // TODO adjust shares allocation
-            let exchange = Exchange::<T>::initialize_new(first_asset_amount, second_asset_amount, sender.clone());
 
             Exchanges::<T>::insert(first_asset_id, second_asset_id, exchange);
 
@@ -169,13 +172,13 @@ decl_module! {
 
             let (adjusted_first_asset_id, adjusted_second_asset_id, adjsuted) = Self::adjust_assets_order(asset_in, asset_out);
 
-            let exchange = Self::ensure_exchange_exists(adjusted_first_asset_id, adjusted_second_asset_id)?;
+            let mut exchange = Self::ensure_exchange_exists(adjusted_first_asset_id, adjusted_second_asset_id)?;
 
             Self::ensure_sufficient_balance(&sender, asset_in, asset_in_amount)?;
 
             let (new_first_asset_pool, new_second_asset_pool, asset_out_amount) = if !adjsuted {
                 let (new_first_asset_pool, new_second_asset_pool, second_asset_out_amount) =
-                    exchange.calculate_first_to_second_asset_swap(asset_in_amount);
+                    exchange.calculate_first_to_second_asset_swap(asset_in_amount)?;
 
                     exchange.ensure_second_asset_amount(second_asset_out_amount, min_asset_out_amount)?;
 
@@ -184,7 +187,7 @@ decl_module! {
                     (new_first_asset_pool, new_second_asset_pool, second_asset_out_amount)
             } else {
                 let (new_first_asset_pool, new_second_asset_pool, first_asset_out_amount) =
-                    exchange.calculate_second_to_first_asset_swap(asset_in_amount);
+                    exchange.calculate_second_to_first_asset_swap(asset_in_amount)?;
 
                     exchange.ensure_first_asset_amount(first_asset_out_amount, min_asset_out_amount)?;
 
@@ -192,6 +195,9 @@ decl_module! {
 
                     (new_first_asset_pool, new_second_asset_pool, first_asset_out_amount)
             };
+
+            // Update exchange pools
+            exchange.update_pools(new_first_asset_pool, new_second_asset_pool)?;
 
             //
             // == MUTATION SAFE ==
@@ -201,9 +207,8 @@ decl_module! {
 
             Self::mint_asset(&sender, asset_out, asset_out_amount);
 
-            <Exchanges<T>>::mutate(adjusted_first_asset_id, adjusted_second_asset_id, |exchange| {
-                exchange.update_pools(new_first_asset_pool, new_second_asset_pool)
-            });
+            // Update runtime exchange storage state
+            <Exchanges<T>>::insert(adjusted_first_asset_id, adjusted_second_asset_id, exchange);
 
             Self::deposit_event(RawEvent::Exchanged(
                 asset_in,
@@ -215,69 +220,6 @@ decl_module! {
             Ok(())
         }
 
-        // #[weight = 10_000]
-        // pub fn swap_exact_to(
-        //     origin,
-        //     asset_in: T::AssetId,
-        //     asset_in_amount: BalanceOf<T>,
-        //     asset_out: T::AssetId,
-        //     min_asset_out_amount: BalanceOf<T>,
-        //     receiver: T::AccountId
-        // ) -> dispatch::DispatchResult {
-        //     let sender = ensure_signed(origin)?;
-
-        //     Self::ensure_valid_exchange(asset_in, asset_out)?;
-
-        //     let from_exchange = Self::ensure_exchange_exists(asset_in)?;
-
-        //     let to_exchange = Self::ensure_exchange_exists(asset_out)?;
-
-        //     let (new_first_asset_pool_from, new_second_asset_pool_from, first_asset_amount) =
-        //         from_exchange.calculate_asset_to_ksm_swap(asset_in_amount);
-        //     from_exchange.ensure_ksm_amount(first_asset_amount, BalanceOf::<T>::zero())?;
-
-        //     let (new_first_asset_pool_to, new_second_asset_pool_to, asset_out_amount) =
-        //         to_exchange.calculate_ksm_to_asset_swap(first_asset_amount);
-        //     to_exchange.ensure_asset_amount(asset_out_amount, min_asset_out_amount)?;
-        //     Self::ensure_sufficient_balance(&sender, &asset_in, asset_in_amount)?;
-        //     Self::ensure_sufficient_balance(&Self::dex_account_id(), &asset_out, asset_out_amount)?;
-
-        //     //
-        //     // == MUTATION SAFE ==
-        //     //
-
-        //     // transfer `second_asset_amount` to the DEX account
-        //     <balances::Module<T>>::make_transfer_with_event(
-        //         &asset_in,
-        //         &sender,
-        //         &Self::dex_account_id(),
-        //         asset_in_amount,
-        //     )?;
-        //     // transfer `assets_out` to the receiver
-        //     <balances::Module<T>>::make_transfer_with_event(
-        //         &asset_out,
-        //         &Self::dex_account_id(),
-        //         &receiver,
-        //         asset_out_amount,
-        //     )?;
-
-        //     <Exchanges<T>>::mutate(asset_in, |exchange| {
-        //         exchange.update_pools(new_first_asset_pool_from, new_second_asset_pool_from)
-        //     });
-        //     <Exchanges<T>>::mutate(asset_out, |exchange| {
-        //         exchange.update_pools(new_first_asset_pool_to, new_second_asset_pool_to)
-        //     });
-
-        //     Self::deposit_event(RawEvent::Exchanged(
-        //         asset_in,
-        //         asset_in_amount,
-        //         asset_out,
-        //         asset_out_amount,
-        //         sender,
-        //     ));
-        //     Ok(())
-        // }
-
         #[weight = 10_000]
         pub fn invest_liquidity(origin, first_asset_id: T::AssetId, second_asset_id: T::AssetId, shares: BalanceOf<T>) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -285,19 +227,23 @@ decl_module! {
             let (first_asset_id, second_asset_id, _) =
                 Self::adjust_assets_order(first_asset_id, second_asset_id);
 
-            let (first_asset_cost, second_asset_cost) = Self::ensure_exchange_exists(first_asset_id, second_asset_id)?.calculate_costs(shares);
+            let mut exchange = Self::ensure_exchange_exists(first_asset_id, second_asset_id)?;
+            let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares)?;
+
             Self::ensure_sufficient_balances(&sender, first_asset_id, first_asset_cost, second_asset_id, second_asset_cost)?;
+
+            // Invest funds into exchange
+            exchange.invest(first_asset_cost, second_asset_cost, shares, &sender)?;
 
             //
             // == MUTATION SAFE ==
             //
 
+            // Slash user assets
             Self::slash_assets(&sender, first_asset_id, first_asset_cost, second_asset_id, second_asset_cost);
 
-
-            <Exchanges<T>>::mutate(first_asset_id, second_asset_id, |exchange| {
-                exchange.invest(first_asset_cost, second_asset_cost, shares, &sender)
-            });
+            // Update runtime exchange storage state
+            <Exchanges<T>>::insert(first_asset_id, second_asset_id, exchange);
 
             Self::deposit_event(RawEvent::Invested(sender, first_asset_id, second_asset_id, shares));
             Ok(())
@@ -316,14 +262,17 @@ decl_module! {
 
             let (first_asset_id, second_asset_id, _) = Self::adjust_assets_order(first_asset_id, second_asset_id);
 
-            let exchange = Self::ensure_exchange_exists(first_asset_id, second_asset_id)?;
+            let mut exchange = Self::ensure_exchange_exists(first_asset_id, second_asset_id)?;
             exchange.ensure_burned_shares(&sender, shares_burned)?;
 
-            let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares_burned);
+            let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares_burned)?;
             Self::ensure_divest_expectations(first_asset_cost, second_asset_cost, min_first_asset_received, min_second_asset_received)?;
 
             // Avoid overflow risks
             Self::ensure_can_hold_balances(&sender, first_asset_id, first_asset_cost, second_asset_id, second_asset_cost)?;
+
+            // Divest funds from exchange
+            exchange.divest(first_asset_cost, second_asset_cost, shares_burned, &sender)?;
 
             //
             // == MUTATION SAFE ==
@@ -331,9 +280,8 @@ decl_module! {
 
             Self::mint_assets(&sender, first_asset_id, first_asset_cost, second_asset_id, second_asset_cost);
 
-            <Exchanges<T>>::mutate(first_asset_id, second_asset_id, |exchange| {
-                exchange.divest(first_asset_cost, second_asset_cost, shares_burned, &sender)
-            });
+            // Update runtime exchange storage state
+            <Exchanges<T>>::insert(first_asset_id, second_asset_id, exchange);
 
             Self::deposit_event(RawEvent::Divested(sender, first_asset_id, second_asset_id, shares_burned));
             Ok(())
