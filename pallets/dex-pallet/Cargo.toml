@@ -37,13 +37,18 @@ default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "rococo-branch"
 
-[dependencies.generic-asset]
+[dependencies.balances]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
-package = 'pallet-generic-asset'
+package = 'pallet-balances'
 branch = "rococo-branch"
 
 [dependencies.sp-runtime]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-branch"
+
+[dependencies.sp-arithmetic]
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "rococo-branch"
@@ -63,9 +68,10 @@ default = ['std']
 std = [
     'serde',
     'codec/std',
-    'generic-asset/std',
+    'balances/std',
     'frame-support/std',
     'frame-system/std',
     'sp-std/std',
     'sp-runtime/std',
+    'sp-arithmetic/std'
 ]
