@@ -1192,12 +1192,13 @@ version = "2.0.0-rc5"
 dependencies = [
  "cumulus-primitives",
  "cumulus-upward-message",
+ "dex-pallet",
  "frame-support",
  "frame-system",
- "pallet-generic-asset",
  "parity-scale-codec",
  "polkadot-parachain",
  "serde",
+ "sp-arithmetic",
 ]
 
 [[package]]
@@ -3766,18 +3767,6 @@ dependencies = [
  "serde",
  "sp-finality-tracker",
  "sp-inherents",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
-name = "pallet-generic-asset"
-version = "2.0.0-rc5"
-source = "git+https://github.com/paritytech/substrate?branch=rococo-branch#83544d41abcc0e3d3cbbd6aa510e04dc50863e5c"
-dependencies = [
- "frame-support",
- "frame-system",
- "parity-scale-codec",
  "sp-runtime",
  "sp-std",
 ]

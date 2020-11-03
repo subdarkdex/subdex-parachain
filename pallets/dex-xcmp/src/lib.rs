@@ -20,9 +20,8 @@
 
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage,
-    dispatch::DispatchResult,
     ensure,
-    traits::{Currency, ExistenceRequirement, Get, WithdrawReason},
+    traits::{Currency, Get},
 };
 use frame_system::ensure_signed;
 
@@ -33,21 +32,23 @@ use cumulus_primitives::{
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
 };
 use cumulus_upward_message::BalancesMessage;
-use generic_asset::{AssetOptions, Owner, PermissionsV1};
-use polkadot_parachain::primitives::AccountIdConversion;
+use sp_arithmetic::traits::One;
 
 #[derive(Encode, Decode)]
-pub enum XCMPMessage<XAccountId, XBalance> {
+pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
     /// Transfer tokens to the given account from the Parachain account.
     TransferToken(XAccountId, XBalance),
+    TransferAsset(XAccountId, XBalance, XAssetIdOf),
 }
 
-type BalanceOf<T> = <T as generic_asset::Trait>::Balance;
+pub type BalanceOf<T> = <<T as dex_pallet::Trait>::Currency as Currency<
+    <T as frame_system::Trait>::AccountId,
+>>::Balance;
 
-pub type AssetIdOf<T> = <T as generic_asset::Trait>::AssetId;
+pub type AssetIdOf<T> = <T as dex_pallet::Trait>::AssetId;
 
 /// Configuration trait of this pallet.
-pub trait Trait: frame_system::Trait + generic_asset::Trait {
+pub trait Trait: frame_system::Trait + dex_pallet::Trait {
     /// Event type used by the runtime.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
@@ -57,46 +58,64 @@ pub trait Trait: frame_system::Trait + generic_asset::Trait {
     /// The upward message type used by the Parachain runtime.
     type UpwardMessage: Codec + BalancesMessage<Self::AccountId, BalanceOf<Self>>;
 
-    // /// Currency of the runtime.
-    // type Currency: Currency<Self::AccountId>;
-
     /// The sender of XCMP messages.
-    type XCMPMessageSender: XCMPMessageSender<XCMPMessage<Self::AccountId, BalanceOf<Self>>>;
+    type XCMPMessageSender: XCMPMessageSender<
+        XCMPMessage<Self::AccountId, BalanceOf<Self>, AssetIdOf<Self>>,
+    >;
 }
 
 // This pallet's storage items.
 decl_storage! {
     trait Store for Module<T: Trait> as ParachainUpgrade {
-        pub DEXAccountId get(fn dex_account_id) config(): T::AccountId;
-        pub CurrencyByParaId get(fn currency_by_para_id): map hasher(blake2_128_concat) ParaId => AssetIdOf<T>;
+
+        // Maps parachain asset id to our internal respresentation
+        pub AssetIdByParaAssetId get(fn asset_id_by_para_asset_id):
+            double_map hasher(blake2_128_concat) ParaId, hasher(blake2_128_concat) AssetIdOf<T> => AssetIdOf<T>;
+
+        // Next dex parachain asset id
+        pub NextAssetId get(fn next_asset_id) config(): AssetIdOf<T>;
     }
 }
 
 decl_event! {
     pub enum Event<T> where
         AccountId = <T as frame_system::Trait>::AccountId,
-        Balance = BalanceOf<T>
+        Balance = BalanceOf<T>,
+        AssetId = AssetIdOf<T>,
+
     {
-        /// Transferred tokens to the account on the relay chain.
+        /// Transferred main currency amount to the account on the relay chain.
         TransferredTokensToRelayChain(AccountId, Balance),
-        /// Transferred tokens to the account on request from the relay chain.
+
+        /// Transferred main currency amount  to the account on request from the relay chain.
         TransferredTokensFromRelayChain(AccountId, Balance),
+
         /// Transferred tokens to the account from the given parachain account.
-        TransferredTokensViaXCMP(ParaId, AccountId, Balance, DispatchResult),
+        TransferredTokensViaXCMP(ParaId, AccountId, Balance),
+
+        /// Transferred custom asset to the account from the given parachain account.
+        TransferredAssetViaXCMP(ParaId, AssetId, AccountId, AssetId, Balance),
     }
 }
 
 decl_module! {
     pub struct Module<T: Trait> for enum Call where origin: T::Origin, system = frame_system {
-        /// Transfer `amount` of tokens on the relay chain from the Parachain account to
+
+        fn deposit_event() = default;
+
+        /// Transfer `amount` of main currency on the relay chain from the Parachain account to
         /// the given `dest` account.
         #[weight = 10]
-        fn transfer_tokens_to_relay_chain(origin, dest: T::AccountId, amount: BalanceOf<T>) {
+        fn transfer_balance_to_relay_chain(origin, dest: T::AccountId, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
 
-            <generic_asset::Module<T>>::burn_free(
-                &<generic_asset::Module<T>>::spending_asset_id(), &Self::dex_account_id(), &sender, &amount
-            )?;
+            <dex_pallet::Module<T>>::ensure_sufficient_balance(&sender, <T as dex_pallet::Trait>::KSMAssetId::get(), amount)?;
+
+            //
+            // == MUTATION SAFE ==
+            //
+
+            <dex_pallet::Module<T>>::slash_asset(&sender, <T as dex_pallet::Trait>::KSMAssetId::get(), amount);
 
 
             let msg = <T as Trait>::UpwardMessage::transfer(dest.clone(), amount.clone());
@@ -106,9 +125,9 @@ decl_module! {
             Self::deposit_event(Event::<T>::TransferredTokensToRelayChain(dest, amount));
         }
 
-        /// Transfer `amount` of tokens to another parachain.
+        // Transfer `amount` of main currency to another parachain.
         #[weight = 10]
-        fn transfer_tokens_to_parachain_chain(
+        fn transfer_balance_to_parachain_chain(
             origin,
             para_id: u32,
             dest: T::AccountId,
@@ -119,11 +138,13 @@ decl_module! {
 
             let para_id: ParaId = para_id.into();
 
-            let asset_id = Self::ensure_parachain_currency_exists(&para_id)?;
+            <dex_pallet::Module<T>>::ensure_sufficient_balance(&who, <T as dex_pallet::Trait>::KSMAssetId::get(), amount)?;
 
-            <generic_asset::Module<T>>::burn_free(
-                &asset_id, &Self::dex_account_id(), &who, &amount
-            )?;
+            //
+            // == MUTATION SAFE ==
+            //
+
+            <dex_pallet::Module<T>>::slash_asset(&who, <T as dex_pallet::Trait>::KSMAssetId::get(), amount);
 
             T::XCMPMessageSender::send_xcmp_message(
                 para_id,
@@ -131,7 +152,6 @@ decl_module! {
             ).expect("Should not fail; qed");
         }
 
-        fn deposit_event() = default;
     }
 }
 
@@ -141,66 +161,30 @@ fn convert_hack<O: Decode>(input: &impl Encode) -> O {
     input.using_encoded(|e| Decode::decode(&mut &e[..]).expect("Must be compatible; qed"))
 }
 
-impl<T: Trait> Module<T> {
-    fn ensure_parachain_currency_exists(para_id: &ParaId) -> Result<AssetIdOf<T>, Error<T>> {
-        ensure!(
-            <CurrencyByParaId<T>>::contains_key(para_id),
-            Error::<T>::CurrencyDoesNotExist
-        );
-        Ok(Self::currency_by_para_id(para_id))
-    }
-
-    fn create_default_dex_asset_options() -> AssetOptions<BalanceOf<T>, T::AccountId> {
-        let owner = Owner::Address(Self::dex_account_id());
-
-        let permissions = PermissionsV1 {
-            update: owner.clone(),
-            mint: owner.clone(),
-            burn: owner.clone(),
-        };
-
-        AssetOptions {
-            // Set default asset initial issuance right after creation equal to zero,
-            // will be updated after minting performed.
-            initial_issuance: BalanceOf::<T>::default(),
-            // Which accounts are allowed to possess this asset.
-            permissions,
-        }
-    }
-}
-
 impl<T: Trait> DownwardMessageHandler for Module<T> {
+    /// Transfer main network asset into dex parachain from the relay chain
     fn handle_downward_message(msg: &DownwardMessage) {
         match msg {
             DownwardMessage::TransferInto(dest, amount, _) => {
                 let dest = convert_hack(&dest);
                 let amount: BalanceOf<T> = convert_hack(amount);
 
-                let relay_chain_currency_id = <generic_asset::Module<T>>::spending_asset_id();
-                let dex_account_id = Self::dex_account_id();
-
-                // TODO figure out a better way to ensure relay chain asset was not created
-
-                if !<CurrencyByParaId<T>>::contains_key(ParaId::default()) {
-                    let dex_asset_options = Self::create_default_dex_asset_options();
-
-                    <generic_asset::Module<T>>::create_asset(
-                        Some(relay_chain_currency_id),
-                        Some(dex_account_id.clone()),
-                        dex_asset_options,
-                    )
-                    .expect("Should not fail!");
-
-                    <CurrencyByParaId<T>>::insert(ParaId::default(), AssetIdOf::<T>::default());
-                }
-
-                <generic_asset::Module<T>>::mint_free(
-                    &relay_chain_currency_id,
-                    &dex_account_id,
+                <dex_pallet::Module<T>>::ensure_can_hold_balance(
                     &dest,
-                    &amount,
+                    <T as dex_pallet::Trait>::KSMAssetId::get(),
+                    amount,
                 )
                 .expect("Should not fail!");
+
+                //
+                // == MUTATION SAFE ==
+                //
+
+                <dex_pallet::Module<T>>::mint_asset(
+                    &dest,
+                    <T as dex_pallet::Trait>::KSMAssetId::get(),
+                    amount,
+                );
 
                 Self::deposit_event(Event::<T>::TransferredTokensFromRelayChain(dest, amount));
             }
@@ -209,40 +193,85 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
     }
 }
 
-impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>>> for Module<T> {
-    fn handle_xcmp_message(src: ParaId, msg: &XCMPMessage<T::AccountId, BalanceOf<T>>) {
-        match msg {
+impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>>
+    for Module<T>
+{
+    fn handle_xcmp_message(
+        src: ParaId,
+        msg: &XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>,
+    ) {
+        let asset_id = match msg {
             XCMPMessage::TransferToken(dest, amount) => {
-                let dex_account_id = Self::dex_account_id();
+                <dex_pallet::Module<T>>::ensure_can_hold_balance(
+                    &dest,
+                    <T as dex_pallet::Trait>::KSMAssetId::get(),
+                    *amount,
+                )
+                .expect("Should not fail!");
+                None
+            }
+            // For other parachain tokens, that are not supported natively in dex parachain
+            XCMPMessage::TransferAsset(dest, amount, para_asset_id)
+                if <AssetIdByParaAssetId<T>>::contains_key(src, para_asset_id) =>
+            {
+                let asset_id = Self::asset_id_by_para_asset_id(src, para_asset_id);
 
-                if !<CurrencyByParaId<T>>::contains_key(&src) {
-                    let asset_id = <generic_asset::Module<T>>::next_asset_id();
-
-                    let dex_asset_options = Self::create_default_dex_asset_options();
-
-                    <generic_asset::Module<T>>::create_asset(
-                        None,
-                        Some(dex_account_id.clone()),
-                        dex_asset_options,
-                    )
+                <dex_pallet::Module<T>>::ensure_can_hold_balance(&dest, asset_id, *amount)
                     .expect("Should not fail!");
 
-                    <CurrencyByParaId<T>>::insert(src.clone(), asset_id);
-                }
+                Some(asset_id)
+            }
+            _ => None,
+        };
 
-                let res = <generic_asset::Module<T>>::mint_free(
-                    &Self::currency_by_para_id(src.clone()),
-                    &dex_account_id,
+        //
+        // == MUTATION SAFE ==
+        //
+
+        match msg {
+            XCMPMessage::TransferToken(dest, amount) => {
+                <dex_pallet::Module<T>>::mint_asset(
                     &dest,
-                    &amount,
+                    <T as dex_pallet::Trait>::KSMAssetId::get(),
+                    *amount,
                 );
 
                 Self::deposit_event(Event::<T>::TransferredTokensViaXCMP(
                     src,
                     dest.clone(),
                     *amount,
-                    res,
                 ));
+            }
+            XCMPMessage::TransferAsset(dest, amount, para_asset_id) => {
+                if let Some(asset_id) = asset_id {
+                    <dex_pallet::Module<T>>::mint_asset(&dest, asset_id, *amount);
+                    Self::deposit_event(Event::<T>::TransferredAssetViaXCMP(
+                        src,
+                        // para asset_id
+                        *para_asset_id,
+                        dest.clone(),
+                        // internal asset id representation
+                        asset_id,
+                        *amount,
+                    ));
+                } else {
+                    let next_asset_id = Self::next_asset_id();
+                    <AssetIdByParaAssetId<T>>::insert(src, *para_asset_id, next_asset_id);
+
+                    <dex_pallet::Module<T>>::mint_asset(&dest, next_asset_id, *amount);
+
+                    <NextAssetId<T>>::mutate(|asset_id| *asset_id += AssetIdOf::<T>::one());
+
+                    Self::deposit_event(Event::<T>::TransferredAssetViaXCMP(
+                        src,
+                        // para asset_id
+                        *para_asset_id,
+                        dest.clone(),
+                        // internal asset id representation
+                        next_asset_id,
+                        *amount,
+                    ));
+                }
             }
         }
     }

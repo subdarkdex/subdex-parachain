@@ -38,12 +38,6 @@ default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = "rococo-branch"
 
-[dependencies.generic-asset]
-git = 'https://github.com/paritytech/substrate.git'
-package = "pallet-generic-asset"
-default-features = false
-branch = "rococo-branch"
-
 [dependencies.polkadot-parachain]
 git = "https://github.com/paritytech/polkadot"
 branch = "rococo-branch"
@@ -54,6 +48,14 @@ features = ['derive']
 optional = true
 version = '1.0.101'
 
+[dependencies.sp-arithmetic]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-branch"
+
+[dependencies.dex-pallet]
+path = '../dex-pallet'
+default-features = false
 
 [features]
 default = ['std']

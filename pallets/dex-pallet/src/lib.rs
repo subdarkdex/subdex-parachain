@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode};
-use frame_support::traits::{Currency, Imbalance};
+use frame_support::traits::Currency;
 use frame_support::{
     decl_error, decl_event, decl_module, decl_storage, dispatch, ensure,
     traits::{Get, WithdrawReason},
@@ -30,10 +30,8 @@ pub use serde::{Deserialize, Serialize};
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
-pub trait Trait: system::Trait + balances::Trait {
-    type Event: From<Event<Self>>
-        + Into<<Self as system::Trait>::Event>
-        + Into<<Self as balances::Trait>::Event>;
+pub trait Trait: system::Trait {
+    type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
     type Currency: Currency<Self::AccountId>;
 
@@ -65,13 +63,11 @@ decl_storage! {
         pub Exchanges get(fn exchanges): double_map hasher(blake2_128_concat) T::AssetId, hasher(blake2_128_concat) T::AssetId => Exchange<T>;
 
         // Balances of assets, located on other parachains.
-        pub AssetBalances get(fn asset_balances): double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AssetId => BalanceOf<T>;
+        pub AssetBalances get(fn asset_balances):
+            double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AssetId => BalanceOf<T>;
 
         // Treasury account
         pub DEXAccountId get(fn dex_account_id) config(): T::AccountId;
-
-        // Next asset id
-        pub NextAssetId get(fn next_asset_id) config(): T::AssetId;
     }
 }
 
@@ -337,10 +333,12 @@ impl<T: Trait> Module<T> {
         // Refactor, when we`ll have native support for multiple currencies.
         if asset_id == T::KSMAssetId::get() {
             T::Currency::deposit_creating(to, asset_amount);
-        } else {
+        } else if <AssetBalances<T>>::contains_key(to, asset_id) {
             <AssetBalances<T>>::mutate(to, asset_id, |asset_total_amount| {
                 *asset_total_amount += asset_amount;
             });
+        } else {
+            <AssetBalances<T>>::insert(to, asset_id, asset_amount);
         }
     }
 
