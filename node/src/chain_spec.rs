@@ -2,7 +2,7 @@
 
 use cumulus_primitives::ParaId;
 use parachain_runtime::{
-    AccountId, DexPalletConfig, BalancesConfig, DexXCMPConfig, GenesisConfig, KSMAssetId,
+    AccountId, BalancesConfig, DexPalletConfig, DexXCMPConfig, GenesisConfig,
     Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};

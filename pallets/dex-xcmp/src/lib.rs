@@ -19,8 +19,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{
-    decl_error, decl_event, decl_module, decl_storage,
-    ensure,
+    decl_error, decl_event, decl_module, decl_storage, ensure,
     traits::{Currency, Get},
 };
 use frame_system::ensure_signed;
@@ -152,6 +151,38 @@ decl_module! {
             ).expect("Should not fail; qed");
         }
 
+        // Transfer `amount` of another parachain custom asset.
+        #[weight = 10]
+        fn transfer_asset_balance_to_parachain_chain(
+            origin,
+            para_id: u32,
+            dest: T::AccountId,
+            para_asset_id: AssetIdOf<T>,
+            amount: BalanceOf<T>,
+        ) {
+
+            //TODO we don't make sure that the parachain has some tokens on the other parachain.
+            let who = ensure_signed(origin)?;
+
+            let para_id: ParaId = para_id.into();
+
+            // Retreive our internal para asset id representation
+            let asset_id = Self::ensure_asset_id_exists(para_id, para_asset_id)?;
+
+            <dex_pallet::Module<T>>::ensure_sufficient_balance(&who, asset_id, amount)?;
+
+            //
+            // == MUTATION SAFE ==
+            //
+
+            <dex_pallet::Module<T>>::slash_asset(&who, asset_id, amount);
+
+            T::XCMPMessageSender::send_xcmp_message(
+                para_id,
+                &XCMPMessage::TransferAsset(dest, amount, para_asset_id,),
+            ).expect("Should not fail; qed");
+        }
+
     }
 }
 
@@ -277,8 +308,21 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
     }
 }
 
+impl<T: Trait> Module<T> {
+    pub fn ensure_asset_id_exists(para_id: ParaId, para_asset_id: AssetIdOf<T>) -> Result<AssetIdOf<T>, Error<T>>  {
+        ensure!(
+            <AssetIdByParaAssetId<T>>::contains_key(para_id, para_asset_id),
+            Error::<T>::AssetIdDoesNotExist
+        );
+        Ok(Self::asset_id_by_para_asset_id(para_id, para_asset_id))
+    }
+}
+
 decl_error! {
     pub enum Error for Module<T: Trait> {
-        CurrencyDoesNotExist
+        // Transferred amount should be greater than 0
+        AmountShouldBeGreaterThanZero,
+        // Given parachain asset id entry does not exist
+        AssetIdDoesNotExist
     }
 }
