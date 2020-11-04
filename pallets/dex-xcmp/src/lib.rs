@@ -309,7 +309,10 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
 }
 
 impl<T: Trait> Module<T> {
-    pub fn ensure_asset_id_exists(para_id: ParaId, para_asset_id: AssetIdOf<T>) -> Result<AssetIdOf<T>, Error<T>>  {
+    pub fn ensure_asset_id_exists(
+        para_id: ParaId,
+        para_asset_id: AssetIdOf<T>,
+    ) -> Result<AssetIdOf<T>, Error<T>> {
         ensure!(
             <AssetIdByParaAssetId<T>>::contains_key(para_id, para_asset_id),
             Error::<T>::AssetIdDoesNotExist
