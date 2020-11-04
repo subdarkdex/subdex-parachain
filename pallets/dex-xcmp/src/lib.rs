@@ -31,7 +31,7 @@ use cumulus_primitives::{
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
 };
 use cumulus_upward_message::BalancesMessage;
-use sp_arithmetic::traits::One;
+use sp_arithmetic::traits::{One, Zero};
 
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
@@ -108,6 +108,8 @@ decl_module! {
         fn transfer_balance_to_relay_chain(origin, dest: T::AccountId, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
 
+            Self::ensure_non_zero_balance(amount)?;
+
             <dex_pallet::Module<T>>::ensure_sufficient_balance(&sender, <T as dex_pallet::Trait>::KSMAssetId::get(), amount)?;
 
             //
@@ -134,6 +136,8 @@ decl_module! {
         ) {
             //TODO we don't make sure that the parachain has some tokens on the other parachain.
             let who = ensure_signed(origin)?;
+
+            Self::ensure_non_zero_balance(amount)?;
 
             let para_id: ParaId = para_id.into();
 
@@ -163,6 +167,8 @@ decl_module! {
 
             //TODO we don't make sure that the parachain has some tokens on the other parachain.
             let who = ensure_signed(origin)?;
+
+            Self::ensure_non_zero_balance(amount)?;
 
             let para_id: ParaId = para_id.into();
 
@@ -319,6 +325,14 @@ impl<T: Trait> Module<T> {
         );
         Ok(Self::asset_id_by_para_asset_id(para_id, para_asset_id))
     }
+
+    pub fn ensure_non_zero_balance(amount: BalanceOf<T>) -> Result<(), Error<T>> {
+        ensure!(
+            amount > BalanceOf::<T>::zero(),
+            Error::<T>::ZeroBalanceAmount
+        );
+        Ok(())
+    }
 }
 
 decl_error! {
@@ -326,6 +340,7 @@ decl_error! {
         // Transferred amount should be greater than 0
         AmountShouldBeGreaterThanZero,
         // Given parachain asset id entry does not exist
-        AssetIdDoesNotExist
+        AssetIdDoesNotExist,
+        ZeroBalanceAmount,
     }
 }
