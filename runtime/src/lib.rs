@@ -22,7 +22,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use dex_pallet;
 use dex_xcmp::XCMPMessage;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
