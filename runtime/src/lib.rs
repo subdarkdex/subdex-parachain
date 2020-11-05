@@ -22,7 +22,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use dex_pallet;
 use dex_xcmp::XCMPMessage;
 use sp_api::impl_runtime_apis;
 use sp_core::OpaqueMetadata;
@@ -215,11 +214,11 @@ parameter_types! {
 }
 
 impl pallet_transaction_payment::Trait for Runtime {
-	type Currency = Balances;
-	type OnTransactionPayment = ();
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = IdentityFee<Balance>;
-	type FeeMultiplierUpdate = ();
+    type Currency = Balances;
+    type OnTransactionPayment = ();
+    type TransactionByteFee = TransactionByteFee;
+    type WeightToFee = IdentityFee<Balance>;
+    type FeeMultiplierUpdate = ();
 }
 
 impl pallet_balances::Trait for Runtime {
@@ -252,7 +251,7 @@ impl cumulus_message_broker::Trait for Runtime {
     type DownwardMessageHandlers = DexXCMP;
     type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
     type ParachainId = ParachainId;
-    type XCMPMessage = XCMPMessage<AccountId, Balance>;
+    type XCMPMessage = XCMPMessage<AccountId, Balance, AssetId>;
     type XCMPMessageHandlers = DexXCMP;
 }
 
