@@ -265,7 +265,6 @@ impl dex_xcmp::Trait for Runtime {
 parameter_types! {
     // Main currency id
     pub const KSMAssetId: AssetId = 0;
-    pub const InitialShares: Balance = 1000;
 
     // 3/1000
     pub const ExchangeFeeRateNominator: Balance = 3;
@@ -275,7 +274,6 @@ parameter_types! {
 impl dex_pallet::Trait for Runtime {
     type Event = Event;
     type Currency = Balances;
-    type InitialShares = InitialShares;
     type AssetId = AssetId;
     type KSMAssetId = KSMAssetId;
     type ExchangeFeeRateNominator = ExchangeFeeRateNominator;
