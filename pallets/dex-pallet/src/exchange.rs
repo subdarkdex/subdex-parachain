@@ -22,6 +22,29 @@ impl<T: Trait> Default for Exchange<T> {
     }
 }
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug)]
+pub struct SwapDelta<T: Trait> {
+    pub first_asset_pool: BalanceOf<T>,
+    pub second_asset_pool: BalanceOf<T>,
+    // Either first or second asset amount (depends on swap direction)
+    pub amount: BalanceOf<T>,
+}
+
+impl<T: Trait> SwapDelta<T> {
+    pub fn new(
+        first_asset_pool: BalanceOf<T>,
+        second_asset_pool: BalanceOf<T>,
+        amount: BalanceOf<T>,
+    ) -> Self {
+        Self {
+            first_asset_pool,
+            second_asset_pool,
+            amount,
+        }
+    }
+}
+
 impl<T: Trait> Exchange<T> {
     // Avoid casting to float
     fn sqrt(y: BalanceOf<T>) -> BalanceOf<T> {
@@ -74,21 +97,17 @@ impl<T: Trait> Exchange<T> {
         Ok(exchange)
     }
 
-    pub fn calculate_first_to_second_asset_swap(
+    fn perform_first_to_second_asset_swap_calculation(
         &self,
+        exchange_fee: BalanceOf<T>,
         first_asset_amount: BalanceOf<T>,
-    ) -> Result<(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), Error<T>> {
-        let fee = T::ExchangeFeeRateNominator::get()
-            .checked_div(&T::ExchangeFeeRateDenominator::get())
-            .map(|fee_rate| fee_rate.checked_mul(&first_asset_amount))
-            .flatten()
-            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+    ) -> Result<SwapDelta<T>, Error<T>> {
         let new_first_asset_pool = self
             .first_asset_pool
             .checked_add(&first_asset_amount)
             .ok_or(Error::<T>::OverflowOccured)?;
         let temp_first_asset_pool = new_first_asset_pool
-            .checked_sub(&fee)
+            .checked_sub(&exchange_fee)
             .ok_or(Error::<T>::UnderflowOccured)?;
         let new_second_asset_pool = self
             .invariant
@@ -98,28 +117,51 @@ impl<T: Trait> Exchange<T> {
             .second_asset_pool
             .checked_sub(&new_second_asset_pool)
             .ok_or(Error::<T>::UnderflowOccured)?;
-        Ok((
+
+        Ok(SwapDelta::new(
             new_first_asset_pool,
             new_second_asset_pool,
             second_asset_amount,
         ))
     }
 
-    pub fn calculate_second_to_first_asset_swap(
+    pub fn calculate_first_to_second_asset_swap(
         &self,
-        second_asset_amount: BalanceOf<T>,
-    ) -> Result<(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), Error<T>> {
-        let fee = T::ExchangeFeeRateNominator::get()
-            .checked_div(&T::ExchangeFeeRateDenominator::get())
-            .map(|fee_rate| fee_rate.checked_mul(&second_asset_amount))
+        first_asset_amount: BalanceOf<T>,
+    ) -> Result<(SwapDelta<T>, Option<(BalanceOf<T>, T::AccountId)>), Error<T>> {
+        let fee = T::FeeRateNominator::get()
+            .checked_mul(&first_asset_amount)
+            .map(|result| result.checked_div(&T::FeeRateDenominator::get()))
             .flatten()
             .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        if let Ok(dex_treasury) = <DEXTreasury<T>>::try_get() {
+            let treasury_fee = dex_treasury
+                .treasury_fee_rate_nominator
+                .checked_mul(&fee)
+                .map(|result| result.checked_div(&dex_treasury.treasury_fee_rate_denominator))
+                .flatten()
+                .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+            let exchange_fee = fee - treasury_fee;
+            let swap_delta = self.perform_first_to_second_asset_swap_calculation(exchange_fee, first_asset_amount)?;
+            Ok((swap_delta, Some((treasury_fee, dex_treasury.dex_account))))
+        } else {
+            let swap_delta = self.perform_first_to_second_asset_swap_calculation(fee, first_asset_amount)?;
+            Ok((swap_delta, None))
+        }
+    }
+
+    fn perform_second_to_first_asset_swap_calculation(
+        &self,
+        exchange_fee: BalanceOf<T>,
+        second_asset_amount: BalanceOf<T>,
+    ) -> Result<SwapDelta<T>, Error<T>> {
         let new_second_asset_pool = self
             .second_asset_pool
             .checked_add(&second_asset_amount)
             .ok_or(Error::<T>::OverflowOccured)?;
         let temp_second_asset_pool = new_second_asset_pool
-            .checked_sub(&fee)
+            .checked_sub(&exchange_fee)
             .ok_or(Error::<T>::UnderflowOccured)?;
         let new_first_asset_pool = self
             .invariant
@@ -129,11 +171,38 @@ impl<T: Trait> Exchange<T> {
             .first_asset_pool
             .checked_sub(&new_first_asset_pool)
             .ok_or(Error::<T>::UnderflowOccured)?;
-        Ok((
+
+        Ok(SwapDelta::new(
             new_first_asset_pool,
             new_second_asset_pool,
             first_asset_amount,
         ))
+    }
+
+    pub fn calculate_second_to_first_asset_swap(
+        &self,
+        second_asset_amount: BalanceOf<T>,
+    ) -> Result<(SwapDelta<T>, Option<(BalanceOf<T>, T::AccountId)>), Error<T>> {
+        let fee = T::FeeRateNominator::get()
+            .checked_mul(&second_asset_amount)
+            .map(|result| result.checked_div(&T::FeeRateDenominator::get()))
+            .flatten()
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        if let Ok(dex_treasury) = <DEXTreasury<T>>::try_get() {
+            let treasury_fee = dex_treasury
+                .treasury_fee_rate_nominator
+                .checked_mul(&fee)
+                .map(|result| result.checked_div(&dex_treasury.treasury_fee_rate_denominator))
+                .flatten()
+                .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+            let exchange_fee = fee - treasury_fee;
+            let swap_delta = self.perform_second_to_first_asset_swap_calculation(exchange_fee, second_asset_amount)?;
+            Ok((swap_delta, Some((treasury_fee, dex_treasury.dex_account))))
+        } else {
+            let swap_delta = self.perform_second_to_first_asset_swap_calculation(fee, second_asset_amount)?;
+            Ok((swap_delta, None))
+        }
     }
 
     pub fn calculate_costs(

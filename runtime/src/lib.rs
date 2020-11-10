@@ -45,6 +45,7 @@ pub use frame_support::{
     StorageValue,
 };
 
+pub use dex_pallet;
 pub use dex_pallet::Call as DexPalletCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
@@ -267,8 +268,8 @@ parameter_types! {
     pub const KSMAssetId: AssetId = 0;
 
     // 3/1000
-    pub const ExchangeFeeRateNominator: Balance = 3;
-    pub const ExchangeFeeRateDenominator: Balance = 1000;
+    pub const FeeRateNominator: Balance = 3;
+    pub const FeeRateDenominator: Balance = 1000;
 }
 
 impl dex_pallet::Trait for Runtime {
@@ -276,8 +277,8 @@ impl dex_pallet::Trait for Runtime {
     type Currency = Balances;
     type AssetId = AssetId;
     type KSMAssetId = KSMAssetId;
-    type ExchangeFeeRateNominator = ExchangeFeeRateNominator;
-    type ExchangeFeeRateDenominator = ExchangeFeeRateDenominator;
+    type FeeRateNominator = FeeRateNominator;
+    type FeeRateDenominator = FeeRateDenominator;
 }
 
 construct_runtime! {
