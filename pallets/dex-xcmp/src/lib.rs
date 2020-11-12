@@ -31,7 +31,7 @@ use cumulus_primitives::{
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
 };
 use cumulus_upward_message::BalancesMessage;
-use sp_arithmetic::traits::{One, Zero};
+pub use sp_arithmetic::traits::{One, Zero};
 
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {

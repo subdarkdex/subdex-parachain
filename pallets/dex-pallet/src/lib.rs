@@ -8,7 +8,7 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-use sp_arithmetic::traits::{BaseArithmetic, Zero};
+use sp_arithmetic::traits::{BaseArithmetic, One, Zero};
 use sp_runtime::traits::{
     CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, MaybeSerializeDeserialize, Member,
 };
@@ -34,8 +34,6 @@ pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
     type Currency: Currency<Self::AccountId>;
-
-    type InitialShares: Get<BalanceOf<Self>>;
 
     // Id representation for assets, located on other parachains.
     // Some ids can be reserved to specify internal assets.
@@ -149,7 +147,8 @@ decl_module! {
 
             Exchanges::<T>::insert(first_asset_id, second_asset_id, exchange);
 
-            Self::deposit_event(RawEvent::Invested(sender, first_asset_id, second_asset_id, T::InitialShares::get()));
+            // rework to get the right shares amount
+            Self::deposit_event(RawEvent::Invested(sender, first_asset_id, second_asset_id, BalanceOf::<T>::one()));
             Ok(())
         }
 
