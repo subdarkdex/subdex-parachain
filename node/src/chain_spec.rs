@@ -2,8 +2,8 @@
 
 use cumulus_primitives::ParaId;
 use parachain_runtime::{
-    AccountId, BalancesConfig, DexPalletConfig, DexXCMPConfig, GenesisConfig, Signature,
-    SudoConfig, SystemConfig, WASM_BINARY,
+    dex_pallet::DexTreasury, AccountId, BalancesConfig, DexPalletConfig, DexXCMPConfig,
+    GenesisConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -121,7 +121,7 @@ fn testnet_genesis(
             key: root_key.clone(),
         }),
         dex_pallet: Some(DexPalletConfig {
-            dex_account_id: root_key,
+            dex_treasury: DexTreasury::new(root_key, 1, 2),
         }),
         dex_xcmp: Some(DexXCMPConfig {
             // 0 id reserved for main currency

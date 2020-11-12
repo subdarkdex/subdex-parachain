@@ -30,6 +30,29 @@ pub use serde::{Deserialize, Serialize};
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[derive(Encode, Decode, Clone, PartialEq, Eq, Debug, Default)]
+pub struct DexTreasury<AccountId: Default + Debug, Balance: Default + Debug> {
+    pub dex_account: AccountId,
+    // treasury fee rate (takes a part from the fee rate)
+    pub treasury_fee_rate_nominator: Balance,
+    pub treasury_fee_rate_denominator: Balance,
+}
+
+impl<AccountId: Default + Debug, Balance: Default + Debug> DexTreasury<AccountId, Balance> {
+    pub fn new(
+        dex_account: AccountId,
+        treasury_fee_rate_nominator: Balance,
+        treasury_fee_rate_denominator: Balance,
+    ) -> Self {
+        DexTreasury {
+            dex_account,
+            treasury_fee_rate_nominator,
+            treasury_fee_rate_denominator,
+        }
+    }
+}
+
 pub trait Trait: system::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
@@ -51,9 +74,9 @@ pub trait Trait: system::Trait {
 
     type KSMAssetId: Get<Self::AssetId>;
 
-    type ExchangeFeeRateNominator: Get<BalanceOf<Self>>;
+    type FeeRateNominator: Get<BalanceOf<Self>>;
 
-    type ExchangeFeeRateDenominator: Get<BalanceOf<Self>>;
+    type FeeRateDenominator: Get<BalanceOf<Self>>;
 }
 
 decl_storage! {
@@ -64,8 +87,8 @@ decl_storage! {
         pub AssetBalances get(fn asset_balances):
             double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AssetId => BalanceOf<T>;
 
-        // Treasury account
-        pub DEXAccountId get(fn dex_account_id) config(): T::AccountId;
+        // Treasury data (used to charge fee, when enabled)
+        pub DEXTreasury get(fn dex_treasury) config(): DexTreasury<T::AccountId, BalanceOf<T>>;
     }
 }
 
@@ -76,8 +99,9 @@ decl_event!(
         AssetId = <T as Trait>::AssetId,
         Shares = BalanceOf<T>,
         Balance = BalanceOf<T>,
+        TreasuryFee = Option<BalanceOf<T>>
     {
-        Exchanged(AssetId, Balance, AssetId, Balance, AccountId),
+        Exchanged(AccountId, AssetId, Balance, AssetId, Balance, TreasuryFee),
         Invested(AccountId, AssetId, AssetId, Shares),
         Divested(AccountId, AssetId, AssetId, Shares),
         Withdrawn(AssetId, Balance, AccountId),
@@ -171,46 +195,56 @@ decl_module! {
 
             Self::ensure_sufficient_balance(&sender, asset_in, asset_in_amount)?;
 
-            let (new_first_asset_pool, new_second_asset_pool, asset_out_amount) = if !adjsuted {
-                let (new_first_asset_pool, new_second_asset_pool, second_asset_out_amount) =
+            let (asset_swap_delta, treasury_fee_data) = if !adjsuted {
+                let (first_to_second_asset_swap_delta, treasury_fee_data) =
                     exchange.calculate_first_to_second_asset_swap(asset_in_amount)?;
 
-                    exchange.ensure_second_asset_amount(second_asset_out_amount, min_asset_out_amount)?;
+                    exchange.ensure_second_asset_amount(first_to_second_asset_swap_delta.amount, min_asset_out_amount)?;
 
-                    Self::ensure_can_hold_balance(&sender, asset_out, second_asset_out_amount)?;
+                    Self::ensure_can_hold_balance(&sender, asset_out, first_to_second_asset_swap_delta.amount)?;
 
-                    (new_first_asset_pool, new_second_asset_pool, second_asset_out_amount)
+                    (first_to_second_asset_swap_delta, treasury_fee_data)
             } else {
-                let (new_first_asset_pool, new_second_asset_pool, first_asset_out_amount) =
+                let (second_to_first_asset_swap_delta, treasury_fee_data) =
                     exchange.calculate_second_to_first_asset_swap(asset_in_amount)?;
 
-                    exchange.ensure_first_asset_amount(first_asset_out_amount, min_asset_out_amount)?;
+                    exchange.ensure_first_asset_amount(second_to_first_asset_swap_delta.amount, min_asset_out_amount)?;
 
-                    Self::ensure_can_hold_balance(&sender, asset_out, first_asset_out_amount)?;
+                    Self::ensure_can_hold_balance(&sender, asset_out, second_to_first_asset_swap_delta.amount)?;
 
-                    (new_first_asset_pool, new_second_asset_pool, first_asset_out_amount)
+                    (second_to_first_asset_swap_delta, treasury_fee_data)
             };
 
             // Update exchange pools
-            exchange.update_pools(new_first_asset_pool, new_second_asset_pool)?;
+            exchange.update_pools(asset_swap_delta.first_asset_pool, asset_swap_delta.second_asset_pool)?;
 
             //
             // == MUTATION SAFE ==
             //
 
+            // Perform exchange
             Self::slash_asset(&sender, asset_in, asset_in_amount);
 
-            Self::mint_asset(&sender, asset_out, asset_out_amount);
+            Self::mint_asset(&sender, asset_out, asset_swap_delta.amount);
+
+            // Charge treasury fee
+            let treasury_fee = if let Some((treasury_fee, dex_account_id)) = treasury_fee_data {
+                Self::mint_asset(&dex_account_id, asset_in, treasury_fee);
+                Some(treasury_fee)
+            } else {
+                None
+            };
 
             // Update runtime exchange storage state
             <Exchanges<T>>::insert(adjusted_first_asset_id, adjusted_second_asset_id, exchange);
 
             Self::deposit_event(RawEvent::Exchanged(
+                sender,
                 asset_in,
                 asset_in_amount,
                 asset_out,
-                asset_out_amount,
-                sender,
+                asset_swap_delta.amount,
+                treasury_fee
             ));
             Ok(())
         }
