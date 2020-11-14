@@ -162,7 +162,7 @@ decl_module! {
             Self::ensure_sufficient_balances(&sender, first_asset_id, first_asset_amount, second_asset_id, second_asset_amount)?;
 
             // TODO adjust shares allocation
-            let exchange = Exchange::<T>::initialize_new(first_asset_amount, second_asset_amount, sender.clone())?;
+            let (exchange, initial_shares) = Exchange::<T>::initialize_new(first_asset_amount, second_asset_amount, sender.clone())?;
 
             //
             // == MUTATION SAFE ==
@@ -172,8 +172,7 @@ decl_module! {
 
             Exchanges::<T>::insert(first_asset_id, second_asset_id, exchange);
 
-            // rework to get the right shares amount
-            Self::deposit_event(RawEvent::Invested(sender, first_asset_id, second_asset_id, BalanceOf::<T>::one()));
+            Self::deposit_event(RawEvent::Invested(sender, first_asset_id, second_asset_id, initial_shares));
             Ok(())
         }
 

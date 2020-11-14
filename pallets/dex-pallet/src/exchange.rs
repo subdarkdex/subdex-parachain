@@ -6,7 +6,7 @@ pub struct Exchange<T: Trait> {
     first_asset_pool: BalanceOf<T>,
     second_asset_pool: BalanceOf<T>,
     pub invariant: BalanceOf<T>,
-    total_shares: BalanceOf<T>,
+    pub total_shares: BalanceOf<T>,
     shares: BTreeMap<T::AccountId, BalanceOf<T>>,
 }
 
@@ -88,7 +88,7 @@ impl<T: Trait> Exchange<T> {
         first_asset_amount: BalanceOf<T>,
         second_asset_amount: BalanceOf<T>,
         sender: T::AccountId,
-    ) -> Result<Self, Error<T>> {
+    ) -> Result<(Self, BalanceOf<T>), Error<T>> {
         let mut shares_map = BTreeMap::new();
         // let min_fee = Self::get_min_fee();
 
@@ -106,7 +106,7 @@ impl<T: Trait> Exchange<T> {
             total_shares: initial_shares,
             shares: shares_map,
         };
-        Ok(exchange)
+        Ok((exchange, initial_shares))
     }
 
     fn perform_first_to_second_asset_swap_calculation(
