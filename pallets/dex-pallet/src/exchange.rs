@@ -6,7 +6,15 @@ pub struct Exchange<T: Trait> {
     first_asset_pool: BalanceOf<T>,
     second_asset_pool: BalanceOf<T>,
     pub invariant: BalanceOf<T>,
+    // total pool shares
     pub total_shares: BalanceOf<T>,
+    // last timestamp, after pool update performed, needed for time_elapsed calculation
+    pub last_timestamp: T::IMoment,
+    // first_asset_pool / second_asset_pool * time_elapsed
+    pub price1_cumulative_last: BalanceOf<T>,
+    // second_asset_pool / first_asset_pool * time_elapsed
+    pub price2_cumulative_last: BalanceOf<T>,
+    // individual shares
     shares: BTreeMap<T::AccountId, BalanceOf<T>>,
 }
 
@@ -17,6 +25,9 @@ impl<T: Trait> Default for Exchange<T> {
             second_asset_pool: BalanceOf::<T>::default(),
             invariant: BalanceOf::<T>::default(),
             total_shares: BalanceOf::<T>::default(),
+            last_timestamp: <pallet_timestamp::Module<T>>::get().into(),
+            price1_cumulative_last: BalanceOf::<T>::default(),
+            price2_cumulative_last: BalanceOf::<T>::default(),
             shares: BTreeMap::new(),
         }
     }
@@ -105,6 +116,9 @@ impl<T: Trait> Exchange<T> {
                 .ok_or(Error::<T>::UnderflowOrOverflowOccured)?,
             total_shares: initial_shares,
             shares: shares_map,
+            last_timestamp: <pallet_timestamp::Module<T>>::get().into(),
+            price1_cumulative_last: BalanceOf::<T>::default(),
+            price2_cumulative_last: BalanceOf::<T>::default(),
         };
         Ok((exchange, initial_shares))
     }
@@ -317,6 +331,36 @@ impl<T: Trait> Exchange<T> {
     ) -> Result<(), Error<T>> {
         self.first_asset_pool = first_asset_pool;
         self.second_asset_pool = second_asset_pool;
+
+        let now: T::IMoment = <pallet_timestamp::Module<T>>::get().into();
+        let time_elapsed: T::IMoment = now
+            .checked_sub(&self.last_timestamp)
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        let price1_cumulative = first_asset_pool
+            .checked_div(&second_asset_pool)
+            .map(|result| result.checked_mul(&time_elapsed.into()))
+            .flatten()
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        self.price1_cumulative_last = self
+            .price1_cumulative_last
+            .checked_add(&price1_cumulative)
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        let price2_cumulative = second_asset_pool
+            .checked_div(&first_asset_pool)
+            .map(|result| result.checked_mul(&time_elapsed.into()))
+            .flatten()
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        self.price2_cumulative_last = self
+            .price2_cumulative_last
+            .checked_add(&price2_cumulative)
+            .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
+
+        self.last_timestamp = now;
+
         self.invariant = self
             .first_asset_pool
             .checked_mul(&self.second_asset_pool)

@@ -53,10 +53,17 @@ impl<AccountId: Default + Debug, Balance: Default + Debug> DexTreasury<AccountId
     }
 }
 
-pub trait Trait: system::Trait {
+pub trait Trait: system::Trait + pallet_timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
     type Currency: Currency<Self::AccountId>;
+
+    // Used for cumulative price calculation
+    type IMoment: From<<Self as pallet_timestamp::Trait>::Moment>
+        + Into<BalanceOf<Self>>
+        + Codec
+        + BaseArithmetic
+        + Copy;
 
     // Id representation for assets, located on other parachains.
     // Some ids can be reserved to specify internal assets.

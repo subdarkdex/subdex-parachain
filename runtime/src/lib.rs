@@ -275,6 +275,7 @@ parameter_types! {
 impl dex_pallet::Trait for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type IMoment = u64;
     type AssetId = AssetId;
     type KSMAssetId = KSMAssetId;
     type FeeRateNominator = FeeRateNominator;
