@@ -99,7 +99,7 @@ decl_event!(
         AssetId = <T as Trait>::AssetId,
         Shares = BalanceOf<T>,
         Balance = BalanceOf<T>,
-        TreasuryFee = Option<BalanceOf<T>>
+        TreasuryFee = Option<BalanceOf<T>>,
     {
         Exchanged(AccountId, AssetId, Balance, AssetId, Balance, TreasuryFee),
         Invested(AccountId, AssetId, AssetId, Shares),
@@ -115,8 +115,8 @@ decl_error! {
         InvalidExchange,
         InvariantNotNull,
         TotalSharesNotNull,
-        LowKsmAmount,
-        LowassetAmount,
+        LowFirstAssetAmount,
+        LowSecondAssetAmount,
         FirstAssetAmountBelowExpectation,
         SecondAssetAmountBelowExpectation,
         InsufficientPool,
@@ -147,13 +147,14 @@ decl_module! {
             let (first_asset_id, first_asset_amount, second_asset_id, second_asset_amount) =
                 Self::adjust_assets_amount_order(first_asset_id, first_asset_amount, second_asset_id, second_asset_amount);
 
+            // TODO adjust first and second min asset amounts
             ensure!(
                 first_asset_amount > BalanceOf::<T>::zero(),
-                Error::<T>::LowKsmAmount
+                Error::<T>::LowFirstAssetAmount
             );
             ensure!(
                 second_asset_amount > BalanceOf::<T>::zero(),
-                Error::<T>::LowassetAmount
+                Error::<T>::LowSecondAssetAmount
             );
 
             Self::ensure_exchange_not_exists(first_asset_id, second_asset_id)?;
