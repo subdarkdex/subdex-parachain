@@ -80,7 +80,10 @@ decl_event! {
     pub enum Event<T> where
         AccountId = <T as frame_system::Trait>::AccountId,
         Balance = BalanceOf<T>,
-        AssetId = AssetIdOf<T>,
+        // None if main currency
+        ParaChainAssetId = Option<AssetIdOf<T>>,
+        // Our internal para asset id representation
+        DexAssetId = AssetIdOf<T>
 
     {
         /// Transferred main currency amount to the account on the relay chain.
@@ -90,10 +93,10 @@ decl_event! {
         TransferredTokensFromRelayChain(AccountId, Balance),
 
         /// Transferred custom asset to the account from the given parachain account.
-        DepositAssetViaXCMP(ParaId, Option<AssetId>, AccountId, AssetId, Balance),
+        DepositAssetViaXCMP(ParaId, ParaChainAssetId, AccountId, DexAssetId, Balance),
 
         /// Transferred custom asset to the account from the given parachain account.
-        WithdrawAssetViaXCMP(ParaId, Option<AssetId>, AccountId, AssetId, Balance),
+        WithdrawAssetViaXCMP(ParaId, ParaChainAssetId, AccountId, DexAssetId, Balance),
     }
 }
 
