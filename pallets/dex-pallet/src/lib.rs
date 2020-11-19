@@ -39,7 +39,7 @@ pub enum Asset<AssetId: Default + Debug + Ord + Copy> {
     ParachainAsset(AssetId),
 }
 
-impl <AssetId: Default + Debug + Ord + Copy> Default for Asset<AssetId> {
+impl<AssetId: Default + Debug + Ord + Copy> Default for Asset<AssetId> {
     fn default() -> Self {
         Self::MainNetworkCurrency
     }
