@@ -250,7 +250,7 @@ parameter_types! {
 impl cumulus_message_broker::Trait for Runtime {
     type Event = Event;
     type DownwardMessageHandlers = DexXCMP;
-    type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
+    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
     type ParachainId = ParachainId;
     type XCMPMessage = XCMPMessage<AccountId, Balance, AssetId>;
     type XCMPMessageHandlers = DexXCMP;
@@ -259,7 +259,7 @@ impl cumulus_message_broker::Trait for Runtime {
 impl dex_xcmp::Trait for Runtime {
     type Event = Event;
     type UpwardMessageSender = MessageBroker;
-    type UpwardMessage = cumulus_upward_message::WestendUpwardMessage;
+    type UpwardMessage = cumulus_upward_message::RococoUpwardMessage;
     type XCMPMessageSender = MessageBroker;
 }
 
