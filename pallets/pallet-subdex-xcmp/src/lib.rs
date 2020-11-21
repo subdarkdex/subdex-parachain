@@ -28,7 +28,7 @@ use cumulus_primitives::{
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
 };
 use cumulus_upward_message::BalancesMessage;
-pub use dex_pallet::Asset;
+pub use pallet_subdex::Asset;
 pub use sp_arithmetic::traits::{One, Zero};
 
 #[derive(Encode, Decode)]
@@ -38,14 +38,14 @@ pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
     TransferToken(XAccountId, XBalance, Option<XAssetIdOf>),
 }
 
-pub type BalanceOf<T> = <<T as dex_pallet::Trait>::Currency as Currency<
+pub type BalanceOf<T> = <<T as pallet_subdex::Trait>::Currency as Currency<
     <T as frame_system::Trait>::AccountId,
 >>::Balance;
 
-pub type AssetIdOf<T> = <T as dex_pallet::Trait>::AssetId;
+pub type AssetIdOf<T> = <T as pallet_subdex::Trait>::AssetId;
 
 /// Configuration trait of this pallet.
-pub trait Trait: frame_system::Trait + dex_pallet::Trait {
+pub trait Trait: frame_system::Trait + pallet_subdex::Trait {
     /// Event type used by the runtime.
     type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
 
@@ -111,13 +111,13 @@ decl_module! {
 
             Self::ensure_non_zero_balance(amount)?;
 
-            <dex_pallet::Module<T>>::ensure_sufficient_balance(&sender, Asset::MainNetworkCurrency, amount)?;
+            <pallet_subdex::Module<T>>::ensure_sufficient_balance(&sender, Asset::MainNetworkCurrency, amount)?;
 
             //
             // == MUTATION SAFE ==
             //
 
-            <dex_pallet::Module<T>>::slash_asset(&sender, Asset::MainNetworkCurrency, amount);
+            <pallet_subdex::Module<T>>::slash_asset(&sender, Asset::MainNetworkCurrency, amount);
 
 
             let msg = <T as Trait>::UpwardMessage::transfer(dest.clone(), amount);
@@ -147,13 +147,13 @@ decl_module! {
             // Retreive our internal para asset id representation
             let asset_id = Self::ensure_asset_id_exists(para_id, para_asset_id)?;
 
-            <dex_pallet::Module<T>>::ensure_sufficient_balance(&who, Asset::ParachainAsset(asset_id), amount)?;
+            <pallet_subdex::Module<T>>::ensure_sufficient_balance(&who, Asset::ParachainAsset(asset_id), amount)?;
 
             //
             // == MUTATION SAFE ==
             //
 
-            <dex_pallet::Module<T>>::slash_asset(&who, Asset::ParachainAsset(asset_id), amount);
+            <pallet_subdex::Module<T>>::slash_asset(&who, Asset::ParachainAsset(asset_id), amount);
 
             T::XCMPMessageSender::send_xcmp_message(
                 para_id,
@@ -179,7 +179,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
             let dest = convert_hack(&dest);
             let amount: BalanceOf<T> = convert_hack(amount);
 
-            <dex_pallet::Module<T>>::ensure_can_hold_balance(
+            <pallet_subdex::Module<T>>::ensure_can_hold_balance(
                 &dest,
                 Asset::MainNetworkCurrency,
                 amount,
@@ -190,7 +190,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
             // == MUTATION SAFE ==
             //
 
-            <dex_pallet::Module<T>>::mint_asset(&dest, Asset::MainNetworkCurrency, amount);
+            <pallet_subdex::Module<T>>::mint_asset(&dest, Asset::MainNetworkCurrency, amount);
 
             Self::deposit_event(Event::<T>::TransferredTokensFromRelayChain(dest, amount));
         }
@@ -211,7 +211,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
             {
                 let asset_id = Self::asset_id_by_para_asset_id(src, para_asset_id);
 
-                <dex_pallet::Module<T>>::ensure_can_hold_balance(
+                <pallet_subdex::Module<T>>::ensure_can_hold_balance(
                     &dest,
                     Asset::ParachainAsset(asset_id),
                     *amount,
@@ -229,7 +229,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
         match msg {
             XCMPMessage::TransferToken(dest, amount, para_asset_id) => {
                 if let Some(asset_id) = asset_id {
-                    <dex_pallet::Module<T>>::mint_asset(
+                    <pallet_subdex::Module<T>>::mint_asset(
                         &dest,
                         Asset::ParachainAsset(asset_id),
                         *amount,
@@ -247,7 +247,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
                     let next_asset_id = Self::next_asset_id();
                     <AssetIdByParaAssetId<T>>::insert(src, *para_asset_id, next_asset_id);
 
-                    <dex_pallet::Module<T>>::mint_asset(
+                    <pallet_subdex::Module<T>>::mint_asset(
                         &dest,
                         Asset::ParachainAsset(next_asset_id),
                         *amount,
