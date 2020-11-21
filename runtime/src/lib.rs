@@ -45,9 +45,9 @@ pub use frame_support::{
     StorageValue,
 };
 
+pub use pallet_balances::Call as BalancesCall;
 pub use pallet_subdex;
 pub use pallet_subdex::Call as DexPalletCall;
-pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
