@@ -21,7 +21,7 @@ use exchange::Exchange;
 #[cfg(feature = "std")]
 pub use serde::{Deserialize, Serialize};
 
-/// Type, used for dex balances representation
+/// Type, used for dex assets balances representation
 pub type BalanceOf<T> =
     <<T as Trait>::Currency as Currency<<T as frame_system::Trait>::AccountId>>::Balance;
 
@@ -222,7 +222,7 @@ decl_module! {
             // Ensure new liquidity pool can be launched successfully
             Self::exchanges(first_asset, second_asset).ensure_launch()?;
 
-            // Ensure account has sufficient balances to initialize exchange
+            // Ensure account has sufficient balance to initialize exchange
             Self::ensure_sufficient_balances(&sender, first_asset, first_asset_amount, second_asset, second_asset_amount)?;
 
             // Initialize new exchange pair
@@ -330,6 +330,7 @@ decl_module! {
             Ok(())
         }
 
+        /// Used to invest liquidity into exchange pool
         #[weight = 10_000]
         pub fn invest_liquidity(origin, first_asset: Asset<T::AssetId>, second_asset: Asset<T::AssetId>, shares: BalanceOf<T>) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
@@ -369,6 +370,7 @@ decl_module! {
             Ok(())
         }
 
+        /// Used to divest liquidity from exchange pool
         #[weight = 10_000]
         pub fn divest_liquidity(
             origin,

@@ -19,6 +19,7 @@ pub use sp_arithmetic::traits::{One, Zero};
 // #[cfg(test)]
 // mod tests;
 
+/// Used to represent xcmp message type
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
     /// Transfer tokens to the given account from the Parachain account.
@@ -26,10 +27,12 @@ pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
     TransferToken(XAccountId, XBalance, Option<XAssetIdOf>),
 }
 
+/// Type, used for dex assets balances representation
 pub type BalanceOf<T> = <<T as pallet_subdex::Trait>::Currency as Currency<
     <T as frame_system::Trait>::AccountId,
 >>::Balance;
 
+/// Type, used for representation of assets, located on other parachains (both internal and remote).
 pub type AssetIdOf<T> = <T as pallet_subdex::Trait>::AssetId;
 
 /// Configuration trait of this pallet.
@@ -91,23 +94,27 @@ decl_module! {
 
         fn deposit_event() = default;
 
-        /// Transfer `amount` of main currency on the relay chain from the Parachain account to
+        /// Transfer `amount` of main currency on the relay chain to
         /// the given `dest` account.
         #[weight = 10]
         fn transfer_balance_to_relay_chain(origin, dest: T::AccountId, amount: BalanceOf<T>) {
             let sender = ensure_signed(origin)?;
 
+            // Ensure provided balance amount is greater than zero
             Self::ensure_non_zero_balance(amount)?;
 
+            // Ensure account has sufficient balance to withdraw
             <pallet_subdex::Module<T>>::ensure_sufficient_balance(&sender, Asset::MainNetworkCurrency, amount)?;
 
             //
             // == MUTATION SAFE ==
             //
 
+            // Slash account asset balance to perform withdraw
             <pallet_subdex::Module<T>>::slash_asset(&sender, Asset::MainNetworkCurrency, amount);
 
 
+            // Send upward transfer message
             let msg = <T as Trait>::UpwardMessage::transfer(dest.clone(), amount);
             <T as Trait>::UpwardMessageSender::send_upward_message(&msg, UpwardMessageOrigin::Signed)
                 .expect("Should not fail; qed");
@@ -115,7 +122,7 @@ decl_module! {
             Self::deposit_event(Event::<T>::TransferredTokensToRelayChain(dest, amount));
         }
 
-        // Transfer an `amount` of another parachain asset.
+        /// Transfer a given `amount` of another parachain asset to another parachain.
         #[weight = 10]
         fn transfer_asset_balance_to_parachain_chain(
             origin,
@@ -125,9 +132,10 @@ decl_module! {
             amount: BalanceOf<T>,
         ) {
 
-            //TODO we don't make sure that the parachain has some tokens on the other parachain.
+            //TODO make sure that the parachain has some tokens on the other parachain.
             let who = ensure_signed(origin)?;
 
+            // Ensure provided balance amount is greater than zero
             Self::ensure_non_zero_balance(amount)?;
 
             let para_id: ParaId = para_id.into();
@@ -135,14 +143,17 @@ decl_module! {
             // Retreive our internal para asset id representation
             let asset_id = Self::ensure_asset_id_exists(para_id, para_asset_id)?;
 
+            // Ensure account has sufficient balance perform withdraw to another parachain
             <pallet_subdex::Module<T>>::ensure_sufficient_balance(&who, Asset::ParachainAsset(asset_id), amount)?;
 
             //
             // == MUTATION SAFE ==
             //
 
+            // Slash balance of account inernal parachain asset representation to perform withdraw
             <pallet_subdex::Module<T>>::slash_asset(&who, Asset::ParachainAsset(asset_id), amount);
 
+            // Send xcmp transfer message
             T::XCMPMessageSender::send_xcmp_message(
                 para_id,
                 &XCMPMessage::TransferToken(dest.clone(), amount, para_asset_id),
@@ -167,6 +178,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
             let dest = convert_hack(&dest);
             let amount: BalanceOf<T> = convert_hack(amount);
 
+            // Ensure account can hold given balance after deposit from relay chain performed
             <pallet_subdex::Module<T>>::ensure_can_hold_balance(
                 &dest,
                 Asset::MainNetworkCurrency,
@@ -178,6 +190,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
             // == MUTATION SAFE ==
             //
 
+            // Mint respective asset amount to given account to complete funds deposit
             <pallet_subdex::Module<T>>::mint_asset(&dest, Asset::MainNetworkCurrency, amount);
 
             Self::deposit_event(Event::<T>::TransferredTokensFromRelayChain(dest, amount));
@@ -188,7 +201,7 @@ impl<T: Trait> DownwardMessageHandler for Module<T> {
 impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>>
     for Module<T>
 {
-    // Transfer main currency or custom asset from other parachain to our chain
+    /// Transfer main currency or custom asset from other parachain to our chain
     fn handle_xcmp_message(
         src: ParaId,
         msg: &XCMPMessage<T::AccountId, BalanceOf<T>, AssetIdOf<T>>,
@@ -197,8 +210,10 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
             XCMPMessage::TransferToken(dest, amount, para_asset_id)
                 if <AssetIdByParaAssetId<T>>::contains_key(src, para_asset_id) =>
             {
+                // Retreive internal dex asset id representation
                 let asset_id = Self::asset_id_by_para_asset_id(src, para_asset_id);
 
+                // Ensure account can hold given balance after deposit from another parachain performed
                 <pallet_subdex::Module<T>>::ensure_can_hold_balance(
                     &dest,
                     Asset::ParachainAsset(asset_id),
@@ -217,6 +232,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
         match msg {
             XCMPMessage::TransferToken(dest, amount, para_asset_id) => {
                 if let Some(asset_id) = asset_id {
+                    // Mint respective asset amount to given account to complete deposit from another parachain
                     <pallet_subdex::Module<T>>::mint_asset(
                         &dest,
                         Asset::ParachainAsset(asset_id),
@@ -232,9 +248,11 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
                         *amount,
                     ));
                 } else {
+                    // Create new (para id, para asset id) -> internal asset id maping entry to keep track of new assets, coming from another parachains
                     let next_asset_id = Self::next_asset_id();
                     <AssetIdByParaAssetId<T>>::insert(src, *para_asset_id, next_asset_id);
 
+                    // Mint respective asset amount to given account to complete deposit from another parachain
                     <pallet_subdex::Module<T>>::mint_asset(
                         &dest,
                         Asset::ParachainAsset(next_asset_id),
@@ -271,6 +289,7 @@ impl<T: Trait> Module<T> {
         Ok(Self::asset_id_by_para_asset_id(para_id, para_asset_id))
     }
 
+    // Ensure provided balance amount is greater than zero
     pub fn ensure_non_zero_balance(amount: BalanceOf<T>) -> Result<(), Error<T>> {
         ensure!(
             amount > BalanceOf::<T>::zero(),
