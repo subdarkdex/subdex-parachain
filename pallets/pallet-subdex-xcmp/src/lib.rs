@@ -1,21 +1,3 @@
-// Copyright 2020 Parity Technologies (UK) Ltd.
-// This file is part of Cumulus.
-
-// Cumulus is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// Cumulus is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with Cumulus.  If not, see <http://www.gnu.org/licenses/>.
-
-//! Example Pallet that shows how to send upward messages and how to receive
-//! downward messages.
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, traits::Currency};
@@ -30,6 +12,12 @@ use cumulus_primitives::{
 use cumulus_upward_message::BalancesMessage;
 pub use pallet_subdex::Asset;
 pub use sp_arithmetic::traits::{One, Zero};
+
+// #[cfg(test)]
+// mod mock;
+
+// #[cfg(test)]
+// mod tests;
 
 #[derive(Encode, Decode)]
 pub enum XCMPMessage<XAccountId, XBalance, XAssetIdOf> {
@@ -271,6 +259,7 @@ impl<T: Trait> XCMPMessageHandler<XCMPMessage<T::AccountId, BalanceOf<T>, AssetI
 }
 
 impl<T: Trait> Module<T> {
+    /// Ensure asset under given id exists
     pub fn ensure_asset_id_exists(
         para_id: ParaId,
         para_asset_id: Option<AssetIdOf<T>>,
@@ -293,10 +282,11 @@ impl<T: Trait> Module<T> {
 
 decl_error! {
     pub enum Error for Module<T: Trait> {
-        // Transferred amount should be greater than 0
+        /// Transferred amount should be greater than 0
         AmountShouldBeGreaterThanZero,
-        // Given parachain asset id entry does not exist
+        /// Given parachain asset id entry does not exist
         AssetIdDoesNotExist,
+        /// Zero asset amound provided
         ZeroBalanceAmount,
     }
 }

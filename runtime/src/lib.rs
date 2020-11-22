@@ -263,10 +263,32 @@ impl pallet_subdex_xcmp::Trait for Runtime {
     type XCMPMessageSender = MessageBroker;
 }
 
+// Used to get min main network asset amount, based on its type size, set on node runtime level
+const fn get_min_main_network_asset_amount() -> Balance {
+    match core::mem::size_of::<Balance>() {
+        size if size <= 64 => 10_000,
+        // cosider 112 instead
+        size if size > 64 && size < 128 => 1_000_000,
+        _ => 10_000_000,
+    }
+}
+
+// Used to get min parachain asset amount, based on its type size, set on node runtime level
+const fn get_min_parachain_asset_amount() -> Balance {
+    match core::mem::size_of::<Balance>() {
+        size if size <= 64 => 1000,
+        // cosider 112 instead
+        size if size > 64 && size < 128 => 100_000,
+        _ => 1_000_000,
+    }
+}
+
 parameter_types! {
     // 3/1000
     pub const FeeRateNominator: Balance = 3;
     pub const FeeRateDenominator: Balance = 1000;
+    pub const MinMainNetworkAssetAmount: Balance = get_min_main_network_asset_amount();
+    pub const MinParachainAssetAmount: Balance = get_min_parachain_asset_amount();
 }
 
 impl pallet_subdex::Trait for Runtime {
@@ -276,6 +298,8 @@ impl pallet_subdex::Trait for Runtime {
     type AssetId = AssetId;
     type FeeRateNominator = FeeRateNominator;
     type FeeRateDenominator = FeeRateDenominator;
+    type MinMainNetworkAssetAmount = MinMainNetworkAssetAmount;
+    type MinParachainAssetAmount = MinParachainAssetAmount;
 }
 
 construct_runtime! {

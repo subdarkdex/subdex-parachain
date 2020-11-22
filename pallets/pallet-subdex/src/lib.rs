@@ -18,12 +18,6 @@ use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, prelude::*};
 mod exchange;
 use exchange::Exchange;
 
-#[cfg(test)]
-mod mock;
-
-#[cfg(test)]
-mod tests;
-
 #[cfg(feature = "std")]
 pub use serde::{Deserialize, Serialize};
 
@@ -72,6 +66,7 @@ impl<AccountId: Default + Debug, Balance: Default + Debug> DexTreasury<AccountId
 pub trait Trait: system::Trait + pallet_timestamp::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 
+    /// Main network currency provider, used by subdex
     type Currency: Currency<Self::AccountId>;
 
     // Used for cumulative price calculation
@@ -81,8 +76,7 @@ pub trait Trait: system::Trait + pallet_timestamp::Trait {
         + BaseArithmetic
         + Copy;
 
-    // Id representation for assets, located on other parachains.
-    // Some ids can be reserved to specify internal assets.
+    /// Type, used for representation of assets, located on other parachains (both internal and remote).
     type AssetId: Parameter
         + Member
         + BaseArithmetic
@@ -95,20 +89,31 @@ pub trait Trait: system::Trait + pallet_timestamp::Trait {
         + PartialEq
         + Ord;
 
+    // Used to calculate joint fee rate (both exchange fee and treasury fee, if enabled).
+
+    /// Joint fee rate nominator
     type FeeRateNominator: Get<BalanceOf<Self>>;
 
+    /// Joint fee rate denominator
     type FeeRateDenominator: Get<BalanceOf<Self>>;
+
+    /// Min main network amount to perfrom invest/divest operations with.
+    type MinMainNetworkAssetAmount: Get<BalanceOf<Self>>;
+
+    /// Min parachain asset amount to perfrom invest/divest operations with.
+    type MinParachainAssetAmount: Get<BalanceOf<Self>>;
 }
 
 decl_storage! {
     trait Store for Module<T: Trait> as TemplateModule {
+        /// Maps both assets to their respective exchange pool
         pub Exchanges get(fn exchanges): double_map hasher(blake2_128_concat) Asset<T::AssetId>, hasher(blake2_128_concat) Asset<T::AssetId> => Exchange<T>;
 
-        // Balances of assets, located on other parachains.
+        /// Balances of assets, located on other parachains.
         pub AssetBalances get(fn asset_balances):
             double_map hasher(blake2_128_concat) T::AccountId, hasher(blake2_128_concat) T::AssetId => BalanceOf<T>;
 
-        // Treasury data (used to charge fee, when enabled)
+        /// Treasury data (used to charge fee, when enabled)
         pub DEXTreasury get(fn dex_treasury) config(): DexTreasury<T::AccountId, BalanceOf<T>>;
     }
 }
@@ -131,23 +136,53 @@ decl_event!(
 
 decl_error! {
     pub enum Error for Module<T: Trait> {
+        /// Given exchange does not exist
         ExchangeNotExists,
+
+        /// Given exchange already exists
         ExchangeAlreadyExists,
+
+        /// Exchange between the same currencies is forbidden
         InvalidExchange,
+
+        /// Should be null before the new exchange lauch
         InvariantNotNull,
+
+        /// Should be null before the new exchange lauch
         TotalSharesNotNull,
-        LowFirstAssetAmount,
-        LowSecondAssetAmount,
+
+        /// Low amount of main network currency provided
+        LowMainNetworkAssetAmount,
+
+        /// Low amount of parachain asset provided
+        LowParachainAssetAmount,
+
+        /// First asset amount is below expectation
         FirstAssetAmountBelowExpectation,
+
+        /// Second asset amount is below expectation
         SecondAssetAmountBelowExpectation,
+
+        /// Low pool amount
         InsufficientPool,
+
+        /// Invalid shares amount provided (should be greater than zero)
         InvalidShares,
+
+        /// Not enough shares to divest
         InsufficientShares,
+
+        /// Given actor does not own any share
         DoesNotOwnShare,
-        InsufficientKsmBalance,
-        InsufficientOtherAssetBalance,
+
+        /// Insufficient amount of main network currency provided
+        InsufficientMainNetworkAssetAmount,
+
+        /// Insufficient amount of parachain asset provided
+        InsufficientParachainAssetAmount,
 
         // Safe math
+
         OverflowOccured,
         UnderflowOccured,
         UnderflowOrOverflowOccured
@@ -161,34 +196,43 @@ decl_module! {
 
         fn deposit_event() = default;
 
+        /// Initialize new exchange pool
         #[weight = 10_000]
-        pub fn initialize_exchange(origin, first_asset: Asset<T::AssetId>, first_asset_amount: BalanceOf<T>, second_asset: Asset<T::AssetId>, second_asset_amount: BalanceOf<T>) -> dispatch::DispatchResult {
+        pub fn initialize_exchange(
+            origin, first_asset: Asset<T::AssetId>,
+            first_asset_amount: BalanceOf<T>,
+            second_asset: Asset<T::AssetId>,
+            second_asset_amount: BalanceOf<T>
+        ) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // Ensure assets are different
+            Self::ensure_valid_exchange(first_asset, second_asset)?;
+
+            // Ensure min asset amounts constraint satisfied
+            Self::ensure_min_asset_amounts(first_asset, first_asset_amount, second_asset, second_asset_amount)?;
+
+            // Adjust assets and their respective amount order
             let (first_asset, first_asset_amount, second_asset, second_asset_amount) =
                 Self::adjust_assets_amount_order(first_asset, first_asset_amount, second_asset, second_asset_amount);
 
-            // TODO adjust first and second min asset amounts
-            ensure!(
-                first_asset_amount > BalanceOf::<T>::zero(),
-                Error::<T>::LowFirstAssetAmount
-            );
-            ensure!(
-                second_asset_amount > BalanceOf::<T>::zero(),
-                Error::<T>::LowSecondAssetAmount
-            );
-
+            // Ensure given exchange pool does not exist yet
             Self::ensure_exchange_not_exists(first_asset, second_asset)?;
+
+            // Ensure new liquidity pool can be launched successfully
             Self::exchanges(first_asset, second_asset).ensure_launch()?;
+
+            // Ensure account has sufficient balances to initialize exchange
             Self::ensure_sufficient_balances(&sender, first_asset, first_asset_amount, second_asset, second_asset_amount)?;
 
-            // TODO adjust shares allocation
+            // Initialize new exchange pair
             let (exchange, initial_shares) = Exchange::<T>::initialize_new(first_asset_amount, second_asset_amount, sender.clone())?;
 
             //
             // == MUTATION SAFE ==
             //
 
+            // Slash respective asset amounts from given account to complete initialize exchange operation
             Self::slash_assets(&sender, first_asset, first_asset_amount, second_asset, second_asset_amount);
 
             Exchanges::<T>::insert(first_asset, second_asset, exchange);
@@ -197,8 +241,9 @@ decl_module! {
             Ok(())
         }
 
+        /// Perform swap of some asset exact amount to another asset amount
         #[weight = 10_000]
-        pub fn swap_to_exact(
+        pub fn swap_exact_to(
             origin,
             asset_in: Asset<T::AssetId>,
             asset_in_amount: BalanceOf<T>,
@@ -208,29 +253,41 @@ decl_module! {
         ) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // Ensure assets are different
             Self::ensure_valid_exchange(asset_in, asset_out)?;
 
             let (adjusted_first_asset_id, adjusted_second_asset_id, adjsuted) = Self::adjust_assets_order(asset_in, asset_out);
 
+            // Ensure given exchange already exists
             let mut exchange = Self::ensure_exchange_exists(adjusted_first_asset_id, adjusted_second_asset_id)?;
 
+            // Ensure account has sufficient balance to perform swap
             Self::ensure_sufficient_balance(&sender, asset_in, asset_in_amount)?;
 
+            // Calculate swap delata and treasury fee (if enabled)
             let (asset_swap_delta, treasury_fee_data) = if !adjsuted {
+
+                // Calculate first to second asset swap delta and treasury fee (if enabled)
                 let (first_to_second_asset_swap_delta, treasury_fee_data) =
                     exchange.calculate_first_to_second_asset_swap(asset_in_amount)?;
 
+                    // Ensure second asset amount is available for withdraw
                     exchange.ensure_second_asset_amount(first_to_second_asset_swap_delta.amount, min_asset_out_amount)?;
 
+                    // Avoid overflow risks after exchange operation performed
                     Self::ensure_can_hold_balance(&sender, asset_out, first_to_second_asset_swap_delta.amount)?;
 
                     (first_to_second_asset_swap_delta, treasury_fee_data)
             } else {
+
+                // Calculate second to first asset swap delta and treasury fee (if enabled)
                 let (second_to_first_asset_swap_delta, treasury_fee_data) =
                     exchange.calculate_second_to_first_asset_swap(asset_in_amount)?;
 
+                    // Ensure first asset amount is available for withdraw
                     exchange.ensure_first_asset_amount(second_to_first_asset_swap_delta.amount, min_asset_out_amount)?;
 
+                    // Avoid overflow risks after exchange operation performed
                     Self::ensure_can_hold_balance(&sender, asset_out, second_to_first_asset_swap_delta.amount)?;
 
                     (second_to_first_asset_swap_delta, treasury_fee_data)
@@ -244,8 +301,11 @@ decl_module! {
             //
 
             // Perform exchange
+
+            // Slash respective asset amount from given account to complete swap operation
             Self::slash_asset(&sender, asset_in, asset_in_amount);
 
+            // Mint respective asset amount to given account to complete swap operation
             Self::mint_asset(&sender, asset_out, asset_swap_delta.amount);
 
             // Charge treasury fee
@@ -274,12 +334,22 @@ decl_module! {
         pub fn invest_liquidity(origin, first_asset: Asset<T::AssetId>, second_asset: Asset<T::AssetId>, shares: BalanceOf<T>) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // Ensure assets are different
+            Self::ensure_valid_exchange(first_asset, second_asset)?;
+
             let (first_asset, second_asset, _) =
                 Self::adjust_assets_order(first_asset, second_asset);
 
+            // Ensure given exchange already exists
             let mut exchange = Self::ensure_exchange_exists(first_asset, second_asset)?;
+
+            // Calculate costs for both first and second currencies, needed to get a given amount of shares
             let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares)?;
 
+            // Ensure min asset amounts constraint satisfied
+            Self::ensure_min_asset_amounts(first_asset, first_asset_cost, second_asset, second_asset_cost)?;
+
+            // Ensure account has sufficient balances to perform invest operation
             Self::ensure_sufficient_balances(&sender, first_asset, first_asset_cost, second_asset, second_asset_cost)?;
 
             // Invest funds into exchange
@@ -310,12 +380,23 @@ decl_module! {
         ) -> dispatch::DispatchResult {
             let sender = ensure_signed(origin)?;
 
+            // Ensure assets are different
+            Self::ensure_valid_exchange(first_asset, second_asset)?;
+
+            // Ensure min asset amounts constraint satisfied
+            Self::ensure_min_asset_amounts(first_asset, min_first_asset_received, second_asset, min_second_asset_received)?;
+
             let (first_asset, second_asset, _) = Self::adjust_assets_order(first_asset, second_asset);
 
+            // Ensure given exchange already exists
             let mut exchange = Self::ensure_exchange_exists(first_asset, second_asset)?;
+
+            // Perform all necessary cheks to ensure that given amount of shares can be burned succesfully
             exchange.ensure_burned_shares(&sender, shares_burned)?;
 
             let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares_burned)?;
+
+            // Ensure divest expectations satisfied
             Self::ensure_divest_expectations(first_asset_cost, second_asset_cost, min_first_asset_received, min_second_asset_received)?;
 
             // Avoid overflow risks
@@ -340,6 +421,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
+    /// Ensure exchange assets are different
     pub fn ensure_valid_exchange(
         asset_in: Asset<T::AssetId>,
         asset_out: Asset<T::AssetId>,
@@ -357,6 +439,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Slash respective assets amount from given account after invest or exchange operation performed
     pub fn slash_assets(
         from: &T::AccountId,
         first_asset: Asset<T::AssetId>,
@@ -368,6 +451,7 @@ impl<T: Trait> Module<T> {
         Self::slash_asset(from, second_asset, second_asset_amount);
     }
 
+    /// Slash respective asset amount from given account after invest or exchange operation performed
     pub fn slash_asset(from: &T::AccountId, asset: Asset<T::AssetId>, asset_amount: BalanceOf<T>) {
         // TODO
         // Refactor, when we`ll have native support for multiple currencies.
@@ -383,6 +467,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Mint respective assets amount to given account after divest or exchange operation performed
     pub fn mint_assets(
         to: &T::AccountId,
         first_asset: Asset<T::AssetId>,
@@ -394,6 +479,7 @@ impl<T: Trait> Module<T> {
         Self::mint_asset(to, second_asset, second_asset_amount);
     }
 
+    /// Mint respective asset amount to given account after divest or exchange operation performed
     pub fn mint_asset(to: &T::AccountId, asset: Asset<T::AssetId>, asset_amount: BalanceOf<T>) {
         // TODO
         // Refactor, when we`ll have native support for multiple currencies.
@@ -412,6 +498,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Ensure given exchange already exists
     pub fn ensure_exchange_exists(
         first_asset: Asset<T::AssetId>,
         second_asset: Asset<T::AssetId>,
@@ -425,6 +512,7 @@ impl<T: Trait> Module<T> {
         Ok(exchange)
     }
 
+    /// Adjust assets and amounts to satisfy the order (first asset < second asset)
     pub fn adjust_assets_amount_order(
         first_asset: Asset<T::AssetId>,
         first_asset_amount: BalanceOf<T>,
@@ -468,6 +556,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Adjust assets to satisfy the order (first asset < second asset)
     pub fn adjust_assets_order(
         first_asset: Asset<T::AssetId>,
         second_asset: Asset<T::AssetId>,
@@ -488,6 +577,7 @@ impl<T: Trait> Module<T> {
         }
     }
 
+    /// Ensure exchange does not exist yet.
     pub fn ensure_exchange_not_exists(
         first_asset: Asset<T::AssetId>,
         second_asset: Asset<T::AssetId>,
@@ -501,6 +591,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
+    /// Ensure account has sufficient balances to perform exchange or invest operation
     pub fn ensure_sufficient_balances(
         sender: &T::AccountId,
         asset_in: Asset<T::AssetId>,
@@ -512,6 +603,7 @@ impl<T: Trait> Module<T> {
         Self::ensure_sufficient_balance(sender, asset_out, asset_out_amount)
     }
 
+    /// Ensure account has sufficient balance to perform exchange or invest operation
     pub fn ensure_sufficient_balance(
         from: &T::AccountId,
         asset: Asset<T::AssetId>,
@@ -522,7 +614,7 @@ impl<T: Trait> Module<T> {
             Asset::MainNetworkCurrency => {
                 let new_balance = T::Currency::free_balance(from)
                     .checked_sub(&amount)
-                    .ok_or(Error::<T>::InsufficientKsmBalance)?;
+                    .ok_or(Error::<T>::InsufficientMainNetworkAssetAmount)?;
 
                 T::Currency::ensure_can_withdraw(
                     from,
@@ -535,11 +627,11 @@ impl<T: Trait> Module<T> {
             Asset::ParachainAsset(asset_id) if Self::asset_balances(from, asset_id) >= amount => {
                 Ok(())
             }
-            _ => Err(Error::<T>::InsufficientOtherAssetBalance.into()),
+            _ => Err(Error::<T>::InsufficientParachainAssetAmount.into()),
         }
     }
 
-    // Avoid overflow risks
+    /// Avoid overflow risks after exchange or divest operation performed
     pub fn ensure_can_hold_balance(
         who: &T::AccountId,
         asset: Asset<T::AssetId>,
@@ -560,7 +652,7 @@ impl<T: Trait> Module<T> {
         Ok(())
     }
 
-    // Avoid overflow risks
+    /// Avoid overflow risks after exchange or divest operation performed
     pub fn ensure_can_hold_balances(
         who: &T::AccountId,
         first_asset: Asset<T::AssetId>,
@@ -572,6 +664,7 @@ impl<T: Trait> Module<T> {
         Self::ensure_can_hold_balance(who, second_asset, second_asset_amount)
     }
 
+    /// Ensure divest expectations satisfied
     pub fn ensure_divest_expectations(
         first_asset_cost: BalanceOf<T>,
         second_asset_cost: BalanceOf<T>,
@@ -587,5 +680,34 @@ impl<T: Trait> Module<T> {
             Error::<T>::SecondAssetAmountBelowExpectation
         );
         Ok(())
+    }
+
+    /// Ensure provided asset amounts satisfy min amounts restrictions
+    pub fn ensure_min_asset_amounts(
+        first_asset: Asset<T::AssetId>,
+        first_asset_amount: BalanceOf<T>,
+        second_asset: Asset<T::AssetId>,
+        second_asset_amount: BalanceOf<T>,
+    ) -> dispatch::DispatchResult {
+        Self::ensure_min_asset_amount(first_asset, first_asset_amount)?;
+        Self::ensure_min_asset_amount(second_asset, second_asset_amount)
+    }
+
+    /// Ensure provided asset amount satisfy min amount restriction
+    pub fn ensure_min_asset_amount(
+        asset: Asset<T::AssetId>,
+        asset_amount: BalanceOf<T>,
+    ) -> dispatch::DispatchResult {
+        match asset {
+            Asset::MainNetworkCurrency if asset_amount < T::MinMainNetworkAssetAmount::get() => {
+                Err(Error::<T>::InsufficientMainNetworkAssetAmount.into())
+            }
+
+            // (room for upgrade - indroduce different parachain asset restrictions, based on decimals/other data)
+            Asset::ParachainAsset(_) if asset_amount < T::MinParachainAssetAmount::get() => {
+                Err(Error::<T>::InsufficientParachainAssetAmount.into())
+            }
+            _ => Ok(()),
+        }
     }
 }
