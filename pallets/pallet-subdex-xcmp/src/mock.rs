@@ -22,9 +22,9 @@
 
 pub use super::*;
 use cumulus_message_broker;
-use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
-use frame_support::traits::{OnFinalize, OnInitialize};
 pub use frame_support::traits::Get;
+use frame_support::traits::{OnFinalize, OnInitialize};
+use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use sp_core::H256;
 use sp_runtime::{
     testing::Header,
@@ -32,9 +32,9 @@ use sp_runtime::{
     Perbill,
 };
 
-use std::cell::RefCell;
+pub use pallet_subdex::{Asset, DexTreasury};
 pub use polkadot_core_primitives::AccountId;
-pub use pallet_subdex::{DexTreasury, Asset};
+use std::cell::RefCell;
 
 impl_outer_origin! {
     pub enum Origin for Test where system = frame_system {}
@@ -51,6 +51,7 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 thread_local! {
     pub static TREASURY_ACCOUNT_ID: RefCell<AccountId> = RefCell::new([255; 32].into());
     pub static FIRST_ACCOUNT_ID: RefCell<AccountId> = RefCell::new([1; 32].into());
+    pub static FIRST_PARA_ID: RefCell<ParaId> = RefCell::new(300.into());
 }
 
 pub struct TreasuryAccountId;
@@ -64,6 +65,13 @@ pub struct FirstAccountId;
 impl Get<AccountId> for FirstAccountId {
     fn get() -> AccountId {
         FIRST_ACCOUNT_ID.with(|v| v.borrow().clone())
+    }
+}
+
+pub struct FirstParaId;
+impl Get<ParaId> for FirstParaId {
+    fn get() -> ParaId {
+        FIRST_PARA_ID.with(|v| v.borrow().clone())
     }
 }
 
@@ -222,6 +230,7 @@ impl_outer_event! {
 
 pub type Balances = pallet_balances::Module<Test>;
 pub type SubdexXcmp = Module<Test>;
+pub type SubDex = pallet_subdex::Module<Test>;
 pub type System = frame_system::Module<Test>;
 
 pub struct ExtBuilder;
@@ -235,8 +244,12 @@ impl ExtBuilder {
             .build_storage::<Test>()
             .unwrap();
 
-        default_subdex_genesis_config.assimilate_storage(&mut t).unwrap();
-        default_subdex_xcmp_genesis_config.assimilate_storage(&mut t).unwrap();
+        default_subdex_genesis_config
+            .assimilate_storage(&mut t)
+            .unwrap();
+        default_subdex_xcmp_genesis_config
+            .assimilate_storage(&mut t)
+            .unwrap();
         t.into()
     }
 }
@@ -248,9 +261,7 @@ fn default_pallet_subdex_genesis_config() -> pallet_subdex::GenesisConfig<Test> 
 }
 
 fn default_pallet_subdex_xcmp_genesis_config() -> GenesisConfig<Test> {
-    GenesisConfig {
-        next_asset_id: 1,
-    }
+    GenesisConfig { next_asset_id: 1 }
 }
 
 pub fn with_test_externalities<R, F: FnOnce() -> R>(f: F) -> R {
@@ -267,12 +278,7 @@ pub fn with_test_externalities<R, F: FnOnce() -> R>(f: F) -> R {
     ExtBuilder::build().execute_with(func)
 }
 
-type RawTestEvent = RawEvent<
-    AccountId,
-    Balance,
-    Option<AssetId>,
-    AssetId,
->;
+type RawTestEvent = RawEvent<AccountId, Balance, Option<AssetId>, AssetId>;
 
 pub fn get_test_event(raw_event: RawTestEvent) -> TestEvent {
     TestEvent::subdex_xcmp(raw_event)

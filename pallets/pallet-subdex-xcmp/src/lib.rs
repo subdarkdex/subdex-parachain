@@ -12,7 +12,7 @@ use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, t
 use frame_system::ensure_signed;
 
 use codec::{Codec, Decode, Encode};
-use cumulus_primitives::{
+pub use cumulus_primitives::{
     relay_chain::DownwardMessage,
     xcmp::{XCMPMessageHandler, XCMPMessageSender},
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
@@ -41,7 +41,9 @@ pub type AssetIdOf<T> = <T as pallet_subdex::Trait>::AssetId;
 /// Configuration trait of this pallet.
 pub trait Trait: frame_system::Trait + pallet_subdex::Trait {
     /// Event type used by the runtime.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event> + Into<<Self as pallet_subdex::Trait>::Event>;
+    type Event: From<Event<Self>>
+        + Into<<Self as frame_system::Trait>::Event>
+        + Into<<Self as pallet_subdex::Trait>::Event>;
 
     /// The sender of upward messages.
     type UpwardMessageSender: UpwardMessageSender<Self::UpwardMessage>;
