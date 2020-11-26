@@ -121,7 +121,7 @@ fn testnet_genesis(
             key: root_key.clone(),
         }),
         pallet_subdex: Some(DexPalletConfig {
-            dex_treasury: DexTreasury::new(root_key, 1, 2),
+            dex_treasury: DexTreasury::new(root_key, 1, 4),
         }),
         pallet_subdex_xcmp: Some(DexXCMPConfig { next_asset_id: 1 }),
         pallet_balances: Some(BalancesConfig {
