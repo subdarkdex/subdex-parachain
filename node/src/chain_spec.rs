@@ -123,10 +123,7 @@ fn testnet_genesis(
         pallet_subdex: Some(DexPalletConfig {
             dex_treasury: DexTreasury::new(root_key, 1, 2),
         }),
-        pallet_subdex_xcmp: Some(DexXCMPConfig {
-            // 0 id reserved for main currency
-            next_asset_id: 1,
-        }),
+        pallet_subdex_xcmp: Some(DexXCMPConfig { next_asset_id: 1 }),
         pallet_balances: Some(BalancesConfig {
             balances: endowed_accounts
                 .iter()

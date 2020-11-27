@@ -57,6 +57,16 @@ branch = "rococo-branch"
 path = '../pallet-subdex'
 default-features = false
 
+[dev-dependencies.sp-core]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-branch"
+
+[dev-dependencies.sp-io]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-branch"
+
 [features]
 default = ['std']
 std = [

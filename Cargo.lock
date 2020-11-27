@@ -4024,6 +4024,8 @@ dependencies = [
  "polkadot-parachain",
  "serde",
  "sp-arithmetic",
+ "sp-core",
+ "sp-io",
 ]
 
 [[package]]
