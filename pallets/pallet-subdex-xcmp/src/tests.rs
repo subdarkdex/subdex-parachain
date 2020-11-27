@@ -1,5 +1,6 @@
 mod handle_downward_message;
 mod handle_xcmp_message;
+mod transfer_balance_to_parachain_chain;
 mod transfer_balance_to_relay_chain;
 
 pub use super::*;
@@ -46,4 +47,20 @@ pub fn emulate_transfer_balance_to_relay_chain(
     transfer_amount: Balance,
 ) -> DispatchResult {
     SubdexXcmp::transfer_balance_to_relay_chain(Origin::signed(origin), dest, transfer_amount)
+}
+
+pub fn emulate_transfer_asset_balance_to_parachain_chain(
+    origin: AccountId,
+    para_id: ParaId,
+    dest: AccountId,
+    para_asset_id: Option<AssetId>,
+    transfer_amount: Balance,
+) -> DispatchResult {
+    SubdexXcmp::transfer_asset_balance_to_parachain_chain(
+        Origin::signed(origin),
+        para_id.into(),
+        dest,
+        para_asset_id,
+        transfer_amount,
+    )
 }
