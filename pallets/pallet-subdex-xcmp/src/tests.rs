@@ -1,4 +1,6 @@
 mod handle_downward_message;
+mod handle_xcmp_message;
+mod transfer_balance_to_relay_chain;
 
 pub use super::*;
 pub use crate::mock::*;
@@ -19,7 +21,7 @@ pub fn asset_id_by_para_asset_id(para_id: ParaId, asset_id: Option<AssetId>) -> 
     SubdexXcmp::asset_id_by_para_asset_id(para_id, asset_id)
 }
 
-pub fn next_asset_id() -> AssetId {
+pub fn get_next_asset_id() -> AssetId {
     SubdexXcmp::next_asset_id()
 }
 
@@ -36,4 +38,12 @@ pub fn emulate_xcmp_message(
 ) {
     let xcmp_message = XCMPMessage::TransferToken(dest, transfer_amount, asset_id);
     SubdexXcmp::handle_xcmp_message(para_id, &xcmp_message);
+}
+
+pub fn emulate_transfer_balance_to_relay_chain(
+    origin: AccountId,
+    dest: AccountId,
+    transfer_amount: Balance,
+) -> DispatchResult {
+    SubdexXcmp::transfer_balance_to_relay_chain(Origin::signed(origin), dest, transfer_amount)
 }

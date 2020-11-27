@@ -24,6 +24,7 @@ pub use super::*;
 use cumulus_message_broker;
 pub use frame_support::traits::Get;
 use frame_support::traits::{OnFinalize, OnInitialize};
+pub use frame_support::{assert_err, assert_ok};
 use frame_support::{impl_outer_event, impl_outer_origin, parameter_types, weights::Weight};
 use sp_core::H256;
 use sp_runtime::{
@@ -32,6 +33,7 @@ use sp_runtime::{
     Perbill,
 };
 
+pub use frame_support::dispatch::DispatchResult;
 pub use pallet_subdex::{Asset, DexTreasury};
 pub use polkadot_core_primitives::AccountId;
 use std::cell::RefCell;
@@ -295,6 +297,30 @@ pub fn assert_event_success(tested_event: TestEvent, number_of_events_after_call
                 .last(),
             Some(last_event) if last_event.event == tested_event
     ));
+}
+
+pub fn assert_subdex_xcmp_failure(
+    call_result: DispatchResult,
+    expected_error: Error<Test>,
+    number_of_events_before_call: usize,
+) {
+    // Ensure  call result is equal to expected error
+    assert_err!(call_result, expected_error);
+
+    // Ensure  no other events emitted after call
+    assert_eq!(System::events().len(), number_of_events_before_call);
+}
+
+pub fn assert_subdex_failure(
+    call_result: DispatchResult,
+    expected_error: pallet_subdex::Error<Test>,
+    number_of_events_before_call: usize,
+) {
+    // Ensure  call result is equal to expected error
+    assert_err!(call_result, expected_error);
+
+    // Ensure  no other events emitted after call
+    assert_eq!(System::events().len(), number_of_events_before_call);
 }
 
 // Recommendation from Parity on testing on_finalize

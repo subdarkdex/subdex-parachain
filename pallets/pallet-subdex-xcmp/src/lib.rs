@@ -298,7 +298,7 @@ impl<T: Trait> Module<T> {
     pub fn ensure_non_zero_balance(amount: BalanceOf<T>) -> Result<(), Error<T>> {
         ensure!(
             amount > BalanceOf::<T>::zero(),
-            Error::<T>::ZeroBalanceAmount
+            Error::<T>::AmountShouldBeGreaterThanZero
         );
         Ok(())
     }
@@ -310,7 +310,5 @@ decl_error! {
         AmountShouldBeGreaterThanZero,
         /// Given parachain asset id entry does not exist
         AssetIdDoesNotExist,
-        /// Zero asset amound provided
-        ZeroBalanceAmount,
     }
 }
