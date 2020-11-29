@@ -65,32 +65,6 @@ impl<T: Trait> SwapDelta<T> {
 }
 
 impl<T: Trait> Exchange<T> {
-    // Take square root
-    // Avoids casting to float
-    // fn sqrt(y: BalanceOf<T>) -> Result<BalanceOf<T>, Error<T>> {
-    //     let z = if y > 3.into() {
-    //         let mut z = y;
-    //         let mut x = y
-    //             .checked_div(&2.into())
-    //             .map(|res| res.checked_add(&1.into()))
-    //             .flatten()
-    //             .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
-    //         while x < z {
-    //             z = x;
-    //             x = y
-    //                 .checked_div(&(x + x))
-    //                 .map(|res| res.checked_div(&2.into()))
-    //                 .flatten()
-    //                 .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
-    //         }
-    //         z
-    //     } else if y != BalanceOf::<T>::zero() {
-    //         BalanceOf::<T>::one()
-    //     } else {
-    //         BalanceOf::<T>::zero()
-    //     };
-    //     Ok(z)
-    // }
 
     // Calculate min fee, used to substract from initial shares amount, based on balances type size set
     fn get_min_fee() -> BalanceOf<T> {
