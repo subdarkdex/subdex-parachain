@@ -114,7 +114,10 @@ impl<T: Trait> Exchange<T> {
         // Calculate initial shares amount, based on formula
         let initial_shares = first_asset_amount
             .checked_mul(&second_asset_amount)
-            .map(|result| result.integer_sqrt().checked_sub(&min_fee))
+            .map(|result| result.integer_sqrt_checked())
+            .flatten()
+            // substract min fee amount
+            .map(|sqrt_result| sqrt_result.checked_sub(&min_fee))
             .flatten()
             .ok_or(Error::<T>::UnderflowOccured)?;
 
