@@ -29,7 +29,7 @@ impl<T: Trait> Default for Exchange<T> {
             second_asset_pool: BalanceOf::<T>::default(),
             invariant: BalanceOf::<T>::default(),
             total_shares: BalanceOf::<T>::default(),
-            last_timestamp: <pallet_timestamp::Module<T>>::get().into(),
+            last_timestamp: T::IMoment::default(),
             price1_cumulative_last: BalanceOf::<T>::default(),
             price2_cumulative_last: BalanceOf::<T>::default(),
             shares: BTreeMap::new(),

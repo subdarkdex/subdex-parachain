@@ -1,23 +1,26 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod upward_messages;
+
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 use frame_support::{decl_error, decl_event, decl_module, decl_storage, ensure, traits::Currency};
 use frame_system::ensure_signed;
 
 use codec::{Codec, Decode, Encode};
-use cumulus_primitives::{
+pub use cumulus_primitives::{
     relay_chain::DownwardMessage,
     xcmp::{XCMPMessageHandler, XCMPMessageSender},
     DownwardMessageHandler, ParaId, UpwardMessageOrigin, UpwardMessageSender,
 };
-use cumulus_upward_message::BalancesMessage;
+
+pub use crate::upward_messages::BalancesMessage;
 pub use pallet_subdex::Asset;
 pub use sp_arithmetic::traits::{One, Zero};
-
-// #[cfg(test)]
-// mod mock;
-
-// #[cfg(test)]
-// mod tests;
 
 /// Used to represent xcmp message type
 #[derive(Encode, Decode)]
@@ -38,7 +41,9 @@ pub type AssetIdOf<T> = <T as pallet_subdex::Trait>::AssetId;
 /// Configuration trait of this pallet.
 pub trait Trait: frame_system::Trait + pallet_subdex::Trait {
     /// Event type used by the runtime.
-    type Event: From<Event<Self>> + Into<<Self as frame_system::Trait>::Event>;
+    type Event: From<Event<Self>>
+        + Into<<Self as frame_system::Trait>::Event>
+        + Into<<Self as pallet_subdex::Trait>::Event>;
 
     /// The sender of upward messages.
     type UpwardMessageSender: UpwardMessageSender<Self::UpwardMessage>;
@@ -293,7 +298,7 @@ impl<T: Trait> Module<T> {
     pub fn ensure_non_zero_balance(amount: BalanceOf<T>) -> Result<(), Error<T>> {
         ensure!(
             amount > BalanceOf::<T>::zero(),
-            Error::<T>::ZeroBalanceAmount
+            Error::<T>::AmountShouldBeGreaterThanZero
         );
         Ok(())
     }
@@ -305,7 +310,5 @@ decl_error! {
         AmountShouldBeGreaterThanZero,
         /// Given parachain asset id entry does not exist
         AssetIdDoesNotExist,
-        /// Zero asset amound provided
-        ZeroBalanceAmount,
     }
 }

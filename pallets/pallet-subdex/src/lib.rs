@@ -73,6 +73,7 @@ pub trait Trait: system::Trait + pallet_timestamp::Trait {
     type IMoment: From<<Self as pallet_timestamp::Trait>::Moment>
         + Into<BalanceOf<Self>>
         + Codec
+        + Default
         + BaseArithmetic
         + Copy;
 
