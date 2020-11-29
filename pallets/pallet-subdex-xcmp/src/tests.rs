@@ -1,15 +1,37 @@
 mod handle_downward_message;
 mod handle_xcmp_message;
+mod initialize_exchange;
 mod transfer_balance_to_parachain_chain;
 mod transfer_balance_to_relay_chain;
 
 pub use super::*;
 pub use crate::mock::*;
+use pallet_subdex::Exchange;
 
 // Subdex
 
 pub fn asset_balances(account_id: AccountId, asset_id: AssetId) -> Balance {
     SubDex::asset_balances(account_id, asset_id)
+}
+
+pub fn dex_exchanges(first_asset: Asset<AssetId>, second_asset: Asset<AssetId>) -> Exchange<Test> {
+    SubDex::exchanges(first_asset, second_asset)
+}
+
+pub fn initialize_new_exchange(
+    origin: AccountId,
+    first_asset: Asset<AssetId>,
+    first_asset_amount: Balance,
+    second_asset: Asset<AssetId>,
+    second_asset_amount: Balance,
+) -> DispatchResult {
+    SubDex::initialize_exchange(
+        Origin::signed(origin),
+        first_asset,
+        first_asset_amount,
+        second_asset,
+        second_asset_amount,
+    )
 }
 
 // Subdex Xcmp

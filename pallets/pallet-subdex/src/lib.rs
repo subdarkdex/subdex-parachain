@@ -16,7 +16,7 @@ use sp_runtime::traits::{
 use sp_std::{collections::btree_map::BTreeMap, fmt::Debug, prelude::*};
 
 mod exchange;
-use exchange::Exchange;
+pub use exchange::Exchange;
 
 #[cfg(feature = "std")]
 pub use serde::{Deserialize, Serialize};
@@ -131,6 +131,7 @@ decl_event!(
         // account id, asset in, asset in amount, asset out, asset out amount, treasury fee
         Exchanged(AccountId, Asset, Balance, Asset, Balance, TreasuryFee),
         Invested(AccountId, Asset, Asset, Shares),
+        Initialized(AccountId, Asset, Asset, Shares),
         Divested(AccountId, Asset, Asset, Shares),
     }
 );
@@ -182,6 +183,12 @@ decl_error! {
         /// Insufficient amount of parachain asset provided
         InsufficientParachainAssetAmount,
 
+        /// Amount of main network currency provided is below minimum
+        MainNetworkAssetAmountBelowMin,
+
+        /// Amount of parachain asset provided is below minimum
+        ParachainAssetAmountBelowMin,
+
         // Safe math
 
         OverflowOccured,
@@ -200,7 +207,8 @@ decl_module! {
         /// Initialize new exchange pool
         #[weight = 10_000]
         pub fn initialize_exchange(
-            origin, first_asset: Asset<T::AssetId>,
+            origin,
+            first_asset: Asset<T::AssetId>,
             first_asset_amount: BalanceOf<T>,
             second_asset: Asset<T::AssetId>,
             second_asset_amount: BalanceOf<T>
@@ -238,7 +246,7 @@ decl_module! {
 
             Exchanges::<T>::insert(first_asset, second_asset, exchange);
 
-            Self::deposit_event(RawEvent::Invested(sender, first_asset, second_asset, initial_shares));
+            Self::deposit_event(RawEvent::Initialized(sender, first_asset, second_asset, initial_shares));
             Ok(())
         }
 
@@ -703,12 +711,12 @@ impl<T: Trait> Module<T> {
     ) -> dispatch::DispatchResult {
         match asset {
             Asset::MainNetworkCurrency if asset_amount < T::MinMainNetworkAssetAmount::get() => {
-                Err(Error::<T>::InsufficientMainNetworkAssetAmount.into())
+                Err(Error::<T>::MainNetworkAssetAmountBelowMin.into())
             }
 
             // (room for upgrade - indroduce different parachain asset restrictions, based on decimals/other data)
             Asset::ParachainAsset(_) if asset_amount < T::MinParachainAssetAmount::get() => {
-                Err(Error::<T>::InsufficientParachainAssetAmount.into())
+                Err(Error::<T>::ParachainAssetAmountBelowMin.into())
             }
             _ => Ok(()),
         }

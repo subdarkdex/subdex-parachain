@@ -110,7 +110,7 @@ pub fn staging_test_net(id: ParaId) -> ChainSpec {
 fn testnet_genesis(
     root_key: AccountId,
     endowed_accounts: Vec<AccountId>,
-    id: ParaId,
+    _id: ParaId,
 ) -> GenesisConfig {
     GenesisConfig {
         frame_system: Some(SystemConfig {
