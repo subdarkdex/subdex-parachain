@@ -1,4 +1,5 @@
 use super::*;
+use sp_runtime::traits::IntegerSquareRoot;
 
 /// Structure, used to represent exchange pool
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -64,32 +65,6 @@ impl<T: Trait> SwapDelta<T> {
 }
 
 impl<T: Trait> Exchange<T> {
-    // Take square root
-    // Avoids casting to float
-    fn sqrt(y: BalanceOf<T>) -> Result<BalanceOf<T>, Error<T>> {
-        let z = if y > 3.into() {
-            let mut z = y;
-            let mut x = y
-                .checked_div(&2.into())
-                .map(|res| res.checked_add(&1.into()))
-                .flatten()
-                .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
-            while x < z {
-                z = x;
-                x = y
-                    .checked_div(&(x + x))
-                    .map(|res| res.checked_div(&2.into()))
-                    .flatten()
-                    .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
-            }
-            z
-        } else if y != BalanceOf::<T>::zero() {
-            BalanceOf::<T>::one()
-        } else {
-            BalanceOf::<T>::zero()
-        };
-        Ok(z)
-    }
 
     // Calculate min fee, used to substract from initial shares amount, based on balances type size set
     fn get_min_fee() -> BalanceOf<T> {
@@ -111,8 +86,13 @@ impl<T: Trait> Exchange<T> {
         let min_fee = Self::get_min_fee();
 
         // Calculate initial shares amount, based on formula
-        let initial_shares = Self::sqrt(first_asset_amount * second_asset_amount)?
-            .checked_sub(&min_fee)
+        let initial_shares = first_asset_amount
+            .checked_mul(&second_asset_amount)
+            .map(|result| result.integer_sqrt_checked())
+            .flatten()
+            // substract min fee amount
+            .map(|sqrt_result| sqrt_result.checked_sub(&min_fee))
+            .flatten()
             .ok_or(Error::<T>::UnderflowOccured)?;
 
         shares_map.insert(sender, initial_shares);

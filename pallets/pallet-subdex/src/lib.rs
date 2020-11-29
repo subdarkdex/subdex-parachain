@@ -8,7 +8,7 @@ use frame_support::{
     Parameter,
 };
 use frame_system::{self as system, ensure_signed};
-use sp_arithmetic::traits::{BaseArithmetic, One, Zero};
+use sp_arithmetic::traits::{BaseArithmetic, Zero};
 use sp_runtime::traits::{
     CheckedAdd, CheckedDiv, CheckedMul, CheckedSub, MaybeSerializeDeserialize, Member,
 };
