@@ -23,7 +23,7 @@ fn handle_downward_message() {
             transfer_amount
         );
 
-        let transferred_tokens_from_relay_chain_event = get_test_event(
+        let transferred_tokens_from_relay_chain_event = get_subdex_xcmp_test_event(
             RawEvent::TransferredTokensFromRelayChain(FirstAccountId::get(), transfer_amount),
         );
 

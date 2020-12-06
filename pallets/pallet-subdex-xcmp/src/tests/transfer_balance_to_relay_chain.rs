@@ -24,7 +24,7 @@ fn transfer_balance_to_relay_chain() {
         // Runtime tested state after call
         assert_eq!(Balances::free_balance(FirstAccountId::get()), 0);
 
-        let transferred_balance_to_relay_chain_event = get_test_event(
+        let transferred_balance_to_relay_chain_event = get_subdex_xcmp_test_event(
             RawEvent::TransferredTokensToRelayChain(FirstAccountId::get(), transfer_amount),
         );
 

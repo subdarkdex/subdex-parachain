@@ -78,7 +78,7 @@ impl Get<ParaId> for FirstParaId {
 }
 
 // Used to get min parachain asset amount, based on its type size, set on node runtime level
-const fn get_min_parachain_asset_amount() -> Balance {
+pub const fn get_min_parachain_asset_amount() -> Balance {
     match core::mem::size_of::<Balance>() {
         size if size <= 64 => 1000,
         // cosider 112 instead
@@ -88,7 +88,7 @@ const fn get_min_parachain_asset_amount() -> Balance {
 }
 
 // Used to get min main network asset amount, based on its type size, set on node runtime level
-const fn get_min_main_network_asset_amount() -> Balance {
+pub const fn get_min_main_network_asset_amount() -> Balance {
     match core::mem::size_of::<Balance>() {
         size if size <= 64 => 10_000,
         // cosider 112 instead
@@ -97,7 +97,7 @@ const fn get_min_main_network_asset_amount() -> Balance {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, Debug, PartialEq)]
 pub struct Test;
 parameter_types! {
     pub const ExistentialDeposit: Balance = 100;
@@ -280,10 +280,17 @@ pub fn with_test_externalities<R, F: FnOnce() -> R>(f: F) -> R {
     ExtBuilder::build().execute_with(func)
 }
 
-type RawTestEvent = RawEvent<AccountId, Balance, Option<AssetId>, AssetId>;
+type SubDexXcmpRawTestEvent = RawEvent<AccountId, Balance, Option<AssetId>, AssetId>;
 
-pub fn get_test_event(raw_event: RawTestEvent) -> TestEvent {
+type SubdexRawTestEvent =
+    pallet_subdex::RawEvent<AccountId, Asset<AssetId>, Balance, Balance, Option<Balance>>;
+
+pub fn get_subdex_xcmp_test_event(raw_event: SubDexXcmpRawTestEvent) -> TestEvent {
     TestEvent::subdex_xcmp(raw_event)
+}
+
+pub fn get_subdex_test_event(raw_event: SubdexRawTestEvent) -> TestEvent {
+    TestEvent::pallet_subdex(raw_event)
 }
 
 pub fn assert_event_success(tested_event: TestEvent, number_of_events_after_call: usize) {

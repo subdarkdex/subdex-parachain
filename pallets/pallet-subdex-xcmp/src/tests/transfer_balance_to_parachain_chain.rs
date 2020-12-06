@@ -37,7 +37,7 @@ fn transfer_balance_to_parachain_chain() {
         assert_eq!(asset_balances(FirstAccountId::get(), next_asset_id), 0);
 
         let transferred_balance_to_parachain_chain_event =
-            get_test_event(RawEvent::WithdrawAssetViaXCMP(
+            get_subdex_xcmp_test_event(RawEvent::WithdrawAssetViaXCMP(
                 FirstParaId::get(),
                 para_asset_id,
                 FirstAccountId::get(),

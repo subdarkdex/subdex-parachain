@@ -53,7 +53,7 @@ fn handle_xcmp_message() {
         assert_eq!(next_asset_id + 1, get_next_asset_id());
 
         let transferred_tokens_from_relay_chain_event =
-            get_test_event(RawEvent::DepositAssetViaXCMP(
+            get_subdex_xcmp_test_event(RawEvent::DepositAssetViaXCMP(
                 FirstParaId::get(),
                 para_asset_id,
                 FirstAccountId::get(),

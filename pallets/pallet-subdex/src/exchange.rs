@@ -65,7 +65,6 @@ impl<T: Trait> SwapDelta<T> {
 }
 
 impl<T: Trait> Exchange<T> {
-
     // Calculate min fee, used to substract from initial shares amount, based on balances type size set
     fn get_min_fee() -> BalanceOf<T> {
         match core::mem::size_of::<BalanceOf<T>>() {
