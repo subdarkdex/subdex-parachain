@@ -356,9 +356,6 @@ decl_module! {
             // Calculate costs for both first and second currencies, needed to get a given amount of shares
             let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares)?;
 
-            // Ensure min asset amounts constraint satisfied
-            Self::ensure_min_asset_amounts(first_asset, first_asset_cost, second_asset, second_asset_cost)?;
-
             // Ensure account has sufficient balances to perform invest operation
             Self::ensure_sufficient_balances(&sender, first_asset, first_asset_cost, second_asset, second_asset_cost)?;
 
@@ -393,9 +390,6 @@ decl_module! {
 
             // Ensure assets are different
             Self::ensure_valid_exchange(first_asset, second_asset)?;
-
-            // Ensure min asset amounts constraint satisfied
-            Self::ensure_min_asset_amounts(first_asset, min_first_asset_received, second_asset, min_second_asset_received)?;
 
             let (first_asset, second_asset, _) = Self::adjust_assets_order(first_asset, second_asset);
 
