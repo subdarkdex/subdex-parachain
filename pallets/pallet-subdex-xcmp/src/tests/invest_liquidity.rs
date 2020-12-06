@@ -117,9 +117,6 @@ fn invest_liquidity_exchange_does_not_exist() {
 
         let para_asset_id = Some(5);
 
-        // previosuly mapped parachain asset representation
-        let dex_para_asset_id = get_next_asset_id() - 1;
-
         // An amount of shares to be own by specific actor
         let shares_to_be_own = 1000;
 
@@ -133,6 +130,9 @@ fn invest_liquidity_exchange_does_not_exist() {
             para_asset_transfer_amount,
             para_asset_id,
         );
+
+        // previosuly mapped parachain asset representation
+        let dex_para_asset_id = get_next_asset_id() - 1;
 
         // Runtime tested state before call
 
