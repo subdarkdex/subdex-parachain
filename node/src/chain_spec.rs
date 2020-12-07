@@ -50,7 +50,7 @@ where
 
 pub fn get_chain_spec(id: ParaId) -> ChainSpec {
     ChainSpec::from_genesis(
-        "Local Testnet",
+        "Subdex Parachain Network",
         "local_testnet",
         ChainType::Local,
         move || testnet_genesis(get_account_id_from_seed::<sr25519::Public>("Alice"), id),
@@ -67,7 +67,7 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
 
 pub fn staging_test_net(id: ParaId) -> ChainSpec {
     ChainSpec::from_genesis(
-        "Staging Testnet",
+        "Subdex Staging Testnet",
         "staging_testnet",
         ChainType::Live,
         move || testnet_genesis(get_account_id_from_seed::<sr25519::Public>("Alice"), id),
