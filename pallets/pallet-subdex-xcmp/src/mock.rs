@@ -53,6 +53,7 @@ pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 thread_local! {
     pub static TREASURY_ACCOUNT_ID: RefCell<AccountId> = RefCell::new([255; 32].into());
     pub static FIRST_ACCOUNT_ID: RefCell<AccountId> = RefCell::new([1; 32].into());
+    pub static SECOND_ACCOUNT_ID: RefCell<AccountId> = RefCell::new([2; 32].into());
     pub static FIRST_PARA_ID: RefCell<ParaId> = RefCell::new(300.into());
 }
 
@@ -67,6 +68,13 @@ pub struct FirstAccountId;
 impl Get<AccountId> for FirstAccountId {
     fn get() -> AccountId {
         FIRST_ACCOUNT_ID.with(|v| v.borrow().clone())
+    }
+}
+
+pub struct SecondAccountId;
+impl Get<AccountId> for SecondAccountId {
+    fn get() -> AccountId {
+        SECOND_ACCOUNT_ID.with(|v| v.borrow().clone())
     }
 }
 

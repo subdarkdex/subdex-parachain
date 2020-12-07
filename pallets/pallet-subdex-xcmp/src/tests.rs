@@ -1,3 +1,4 @@
+mod divest_liquidity;
 mod handle_downward_message;
 mod handle_xcmp_message;
 mod initialize_exchange;
@@ -75,6 +76,24 @@ pub fn emulate_invest_liquidity(
     shares: Balance,
 ) -> DispatchResult {
     SubDex::invest_liquidity(Origin::signed(origin), first_asset, second_asset, shares)
+}
+
+pub fn emulate_divest_liquidity(
+    origin: AccountId,
+    first_asset: Asset<AssetId>,
+    second_asset: Asset<AssetId>,
+    shares_burned: Balance,
+    min_first_asset_received: Balance,
+    min_second_asset_received: Balance,
+) -> DispatchResult {
+    SubDex::divest_liquidity(
+        Origin::signed(origin),
+        first_asset,
+        second_asset,
+        shares_burned,
+        min_first_asset_received,
+        min_second_asset_received,
+    )
 }
 
 // Subdex Xcmp

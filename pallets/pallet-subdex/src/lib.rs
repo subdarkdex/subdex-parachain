@@ -396,7 +396,7 @@ decl_module! {
             // Ensure given exchange already exists
             let mut exchange = Self::ensure_exchange_exists(first_asset, second_asset)?;
 
-            // Perform all necessary cheks to ensure that given amount of shares can be burned succesfully
+            // Perform all necessary checks to ensure that given amount of shares can be burned succesfully
             exchange.ensure_burned_shares(&sender, shares_burned)?;
 
             let (first_asset_cost, second_asset_cost) = exchange.calculate_costs(shares_burned)?;
