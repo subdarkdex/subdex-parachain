@@ -308,7 +308,7 @@ impl<T: Trait> Exchange<T> {
         sender: &T::AccountId,
     ) -> Result<(), Error<T>> {
         if let Some(share) = self.shares.get_mut(sender) {
-            share
+            *share = share
                 .checked_sub(&shares)
                 .ok_or(Error::<T>::UnderflowOccured)?;
         }
