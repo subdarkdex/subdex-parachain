@@ -50,7 +50,7 @@ where
 
 pub fn get_chain_spec(id: ParaId) -> ChainSpec {
     ChainSpec::from_genesis(
-        "Local Testnet",
+        "Subdex Parachain Network",
         "local_testnet",
         ChainType::Local,
         move || {
@@ -60,15 +60,6 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
                     get_account_id_from_seed::<sr25519::Public>("Alice"),
                     get_account_id_from_seed::<sr25519::Public>("Bob"),
                     get_account_id_from_seed::<sr25519::Public>("Charlie"),
-                    get_account_id_from_seed::<sr25519::Public>("Dave"),
-                    get_account_id_from_seed::<sr25519::Public>("Eve"),
-                    get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-                    get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
                 ],
                 id,
             )
@@ -86,7 +77,7 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
 
 pub fn staging_test_net(id: ParaId) -> ChainSpec {
     ChainSpec::from_genesis(
-        "Staging Testnet",
+        "Subdex Staging Testnet",
         "staging_testnet",
         ChainType::Live,
         move || {
@@ -128,7 +119,7 @@ fn testnet_genesis(
             balances: endowed_accounts
                 .iter()
                 .cloned()
-                .map(|k| (k, 1 << 60))
+                .map(|k| (k, 1 << 63))
                 .collect(),
         }),
     }
