@@ -247,13 +247,15 @@ impl<T: Trait> Exchange<T> {
         shares: BalanceOf<T>,
     ) -> Result<(BalanceOf<T>, BalanceOf<T>), Error<T>> {
         let first_asset_cost = shares
-            .checked_div(&self.total_shares)
-            .map(|ratio| ratio * self.first_asset_pool)
+            .checked_mul(&self.first_asset_pool)
+            .map(|result| result.checked_div(&self.total_shares))
+            .flatten()
             .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
 
         let second_asset_cost = shares
-            .checked_div(&self.total_shares)
-            .map(|ratio| ratio * self.second_asset_pool)
+            .checked_mul(&self.second_asset_pool)
+            .map(|result| result.checked_div(&self.total_shares))
+            .flatten()
             .ok_or(Error::<T>::UnderflowOrOverflowOccured)?;
 
         Ok((first_asset_cost, second_asset_cost))
