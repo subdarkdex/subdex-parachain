@@ -2,8 +2,8 @@
 
 use cumulus_primitives::ParaId;
 use parachain_runtime::{
-    pallet_subdex::DexTreasury, AccountId, BalancesConfig, DexPalletConfig, DexXCMPConfig,
-    GenesisConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
+    pallet_subdex::DexTreasury, AccountId, DexPalletConfig, DexXCMPConfig, GenesisConfig,
+    Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -53,26 +53,7 @@ pub fn get_chain_spec(id: ParaId) -> ChainSpec {
         "Local Testnet",
         "local_testnet",
         ChainType::Local,
-        move || {
-            testnet_genesis(
-                get_account_id_from_seed::<sr25519::Public>("Alice"),
-                vec![
-                    get_account_id_from_seed::<sr25519::Public>("Alice"),
-                    get_account_id_from_seed::<sr25519::Public>("Bob"),
-                    get_account_id_from_seed::<sr25519::Public>("Charlie"),
-                    get_account_id_from_seed::<sr25519::Public>("Dave"),
-                    get_account_id_from_seed::<sr25519::Public>("Eve"),
-                    get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-                    get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-                    get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-                ],
-                id,
-            )
-        },
+        move || testnet_genesis(get_account_id_from_seed::<sr25519::Public>("Alice"), id),
         vec![],
         None,
         None,
@@ -89,13 +70,7 @@ pub fn staging_test_net(id: ParaId) -> ChainSpec {
         "Staging Testnet",
         "staging_testnet",
         ChainType::Live,
-        move || {
-            testnet_genesis(
-                get_account_id_from_seed::<sr25519::Public>("Alice"),
-                vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-                id,
-            )
-        },
+        move || testnet_genesis(get_account_id_from_seed::<sr25519::Public>("Alice"), id),
         Vec::new(),
         None,
         None,
@@ -107,11 +82,7 @@ pub fn staging_test_net(id: ParaId) -> ChainSpec {
     )
 }
 
-fn testnet_genesis(
-    root_key: AccountId,
-    endowed_accounts: Vec<AccountId>,
-    _id: ParaId,
-) -> GenesisConfig {
+fn testnet_genesis(root_key: AccountId, _id: ParaId) -> GenesisConfig {
     GenesisConfig {
         frame_system: Some(SystemConfig {
             code: WASM_BINARY.to_vec(),
@@ -124,12 +95,5 @@ fn testnet_genesis(
             dex_treasury: DexTreasury::new(root_key, 1, 4),
         }),
         pallet_subdex_xcmp: Some(DexXCMPConfig { next_asset_id: 1 }),
-        pallet_balances: Some(BalancesConfig {
-            balances: endowed_accounts
-                .iter()
-                .cloned()
-                .map(|k| (k, 1 << 60))
-                .collect(),
-        }),
     }
 }
