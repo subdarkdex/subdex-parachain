@@ -3997,6 +3997,7 @@ dependencies = [
 [[package]]
 name = "pallet-subdex"
 version = "2.0.0-rc5"
+source = "git+https://github.com/subdarkdex/pallet-subdex#57ad91eceac1c56c4c7fd6107ffa58a1d4150660"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -4005,8 +4006,6 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-arithmetic",
- "sp-core",
- "sp-io",
  "sp-runtime",
  "sp-std",
 ]
@@ -4014,15 +4013,13 @@ dependencies = [
 [[package]]
 name = "pallet-subdex-xcmp"
 version = "2.0.0-rc5"
+source = "git+https://github.com/subdarkdex/pallet-subdex#57ad91eceac1c56c4c7fd6107ffa58a1d4150660"
 dependencies = [
- "cumulus-message-broker",
  "cumulus-primitives",
  "cumulus-upward-message",
  "frame-support",
  "frame-system",
- "pallet-balances",
  "pallet-subdex",
- "pallet-timestamp",
  "parity-scale-codec",
  "polkadot-core-primitives",
  "polkadot-parachain",
@@ -4030,9 +4027,6 @@ dependencies = [
  "rococo-runtime",
  "serde",
  "sp-arithmetic",
- "sp-core",
- "sp-io",
- "sp-runtime",
  "sp-std",
 ]
 

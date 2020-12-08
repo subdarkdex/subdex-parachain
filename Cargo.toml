@@ -1,8 +1,6 @@
 [workspace]
 members = [
 	"runtime/",
-	"pallets/pallet-subdex-xcmp",
-	"pallets/pallet-subdex",
 	"node/",
 ]
 
