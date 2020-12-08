@@ -8,8 +8,11 @@ edition = '2018'
 serde = { version = "1.0.101", default-features = false, optional = true, features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
 
-pallet-subdex = { path = "../pallets/pallet-subdex", default-features = false}
-pallet-subdex-xcmp = { path = "../pallets/pallet-subdex-xcmp", default-features = false}
+# pallet-subdex = { path = "../pallets/pallet-subdex", default-features = false}
+# pallet-subdex-xcmp = { path = "../pallets/pallet-subdex-xcmp", default-features = false}
+
+pallet-subdex = { git = "https://github.com/subdarkdex/pallet-subdex", default-features = false }
+pallet-subdex-xcmp = { git = "https://github.com/subdarkdex/pallet-subdex", default-features = false }
 
 # Substrate dependencies
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
