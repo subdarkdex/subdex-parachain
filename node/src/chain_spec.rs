@@ -2,8 +2,7 @@
 
 use cumulus_primitives::ParaId;
 use parachain_runtime::{
-    pallet_subdex::DexTreasury, AccountId, DexPalletConfig, DexXCMPConfig, GenesisConfig,
-    Signature, SudoConfig, SystemConfig, WASM_BINARY,
+    AccountId, DexXCMPConfig, GenesisConfig, Signature, SudoConfig, SystemConfig, WASM_BINARY,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -90,9 +89,6 @@ fn testnet_genesis(root_key: AccountId, _id: ParaId) -> GenesisConfig {
         }),
         pallet_sudo: Some(SudoConfig {
             key: root_key.clone(),
-        }),
-        pallet_subdex: Some(DexPalletConfig {
-            dex_treasury: DexTreasury::new(root_key, 1, 4),
         }),
         pallet_subdex_xcmp: Some(DexXCMPConfig { next_asset_id: 1 }),
     }

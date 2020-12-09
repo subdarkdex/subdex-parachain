@@ -317,7 +317,7 @@ construct_runtime! {
         DexXCMP: pallet_subdex_xcmp::{Module, Call, Event<T>, Storage, Config<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Balances: pallet_balances::{Module, Call, Storage, Event<T>},
-        DexPallet: pallet_subdex::{Module, Config<T>, Call, Storage, Event<T>},
+        DexPallet: pallet_subdex::{Module, Call, Storage, Event<T>},
     }
 }
 
